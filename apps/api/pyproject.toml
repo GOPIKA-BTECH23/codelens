@@ -1,0 +1,39 @@
+[project]
+name = "codelens-api"
+dynamic = ["version"]
+description = "CodeLens API: webhook intake, REST, SSE chat and background worker"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastapi==0.143.2",
+    "uvicorn[standard]==0.54.0",
+    "pydantic==2.14.1",
+    "pydantic-settings==2.16.0",
+]
+
+[dependency-groups]
+dev = [
+    "httpx2==2.13.1",  # used by Starlette/FastAPI TestClient (replaces httpx there)
+    "pytest==9.1.1",
+    "ruff==0.17.1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "app/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "C4"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
