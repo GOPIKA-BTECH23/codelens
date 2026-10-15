@@ -10,6 +10,28 @@ export interface HealthResponse {
   revision: string | null
 }
 
+/** Roles inside an installation, strongest first: owner > admin > member. */
+export type MemberRole = 'owner' | 'admin' | 'member'
+
+export interface InstallationSummary {
+  id: string
+  github_installation_id: number
+  account_login: string
+  account_type: 'user' | 'organization'
+  role: MemberRole
+}
+
+/** GET /me */
+export interface MeResponse {
+  user: {
+    id: string
+    login: string
+    name: string | null
+    avatar_url: string | null
+  }
+  installations: InstallationSummary[]
+}
+
 /** Every error response from the API has this shape. */
 export interface ApiErrorBody {
   error: {
