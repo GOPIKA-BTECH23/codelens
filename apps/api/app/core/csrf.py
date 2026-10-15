@@ -62,7 +62,8 @@ class CsrfMiddleware:
         # Middleware sits outside FastAPI's exception handlers, so build the standard error
         # shape by hand. The request-ID middleware (outermost) still adds X-Request-ID.
         body = json.dumps(
-            {"error": {"code": "csrf_failed", "message": "Cross-site request rejected"}}
+            {"error": {"code": "csrf_failed", "message": "Cross-site request rejected"}},
+            separators=(",", ":"),  # same compact JSON as every other error response
         ).encode()
         await send(
             {
