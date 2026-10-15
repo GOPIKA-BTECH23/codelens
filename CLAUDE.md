@@ -56,7 +56,7 @@ GitHub ──webhook (HMAC-signed)──► FastAPI ──insert job──► Po
 
 **Database:** Postgres (Supabase in production, `pgvector/pgvector` image locally) with the `vector` extension, HNSW index on embeddings, `tsvector` full-text column for lexical search.
 
-**Frontend:** Vite, React 19, TypeScript (strict), React Router, TanStack Query, Tailwind CSS, Vitest + Testing Library, Playwright (one E2E flow), ESLint + Prettier.
+**Frontend:** Node.js current LTS, 22 or newer (Node 20 reached end-of-life in April 2026; verify the LTS line before pinning), Vite, React 19, TypeScript (strict), React Router, TanStack Query, Tailwind CSS, Vitest + Testing Library, Playwright (one E2E flow), ESLint + Prettier.
 
 **Auth and security:** GitHub OAuth for users, own JWT sessions in httpOnly cookies, RBAC, GitHub App JWT → installation token for the worker, webhook HMAC verification, rate limiting, prompt-injection defences, secrets only via env vars.
 
@@ -102,7 +102,13 @@ codelens/
 
 ## 7. Data model (Postgres)
 
-`users`, `installations`, `installation_members` (role: owner/admin/member), `repositories` (index_status, last_indexed_sha), `pull_requests`, `review_runs` (status, model, tokens_in/out, cost_usd, latency_ms, error, prompt_version), `findings` (file, line, severity, category, message, suggestion, confidence, user_feedback), `code_chunks` (repo_id, path, language, start_line, end_line, content, embedding vector, tsv, commit_sha), `chat_sessions`, `chat_messages` (cited_chunk_ids), `webhook_deliveries` (delivery_id UNIQUE), `jobs` (type, payload, status, attempts, run_after, locked_at, last_error), `refresh_tokens` (hashed, rotated, revoked_at).
+`users`, `installations`, `installation_members` (role: owner/admin/member), `repositories` (index_status, last_indexed_sha), `pull_requests`, `review_runs` (status, model, tokens_in/out, cost_usd, latency_ms, error, prompt_version), `findings` (file, line, severity, category, message, suggestion, confidence, user_feedback), `code_chunks` (repo_id, path, language, start_line, end_line, content, embedding vector, tsv, commit_sha), `chat_sessions`, `chat_messages` (cited_chunk_ids), `webhook_deliveries` (delivery_id UNIQUE), `jobs` (type, payload, status, attempts, run_after, locked_at, last_error), `refresh_tokens` (hashed, rotated, revoked_at), `repository_access` (user_id, repository_id, UNIQUE pair; synced from GitHub at login; added in the M2 migration).
+
+**Authorization uses two levels:** installation membership gives the role, and `repository_access` decides which repos of that installation a user may see. Every repo-scoped endpoint checks both.
+
+**Data retention on uninstall** (`installation.deleted`): stop the installation's jobs, then immediately hard-delete its `code_chunks`, `chat_sessions` and `chat_messages`. Keep review metadata (`pull_requests`, `review_runs`, finding file/line/severity/category/confidence/feedback). 30 days after uninstall, purge finding text that can contain code (`findings.message` and `findings.suggestion` set to NULL).
+
+**Schema growth:** columns that later milestones need (for example `repositories.settings`, `review_runs.head_sha`, `findings.dismissed`, `code_chunks.symbol` / `content_hash`, per-agent usage) are added by that milestone's own migration, not up front.
 
 All schema changes go through Alembic migrations. Never edit the DB by hand.
 
@@ -140,7 +146,7 @@ All schema changes go through Alembic migrations. Never edit the DB by hand.
 
 ## 11. Environment variables (document all in `.env.example`)
 
-`DATABASE_URL`, `JWT_SECRET`, `JWT_ACCESS_TTL_MINUTES`, `JWT_REFRESH_TTL_DAYS`, `WEB_ORIGIN`, `API_ORIGIN`, `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY` (PEM, base64 or path), `GITHUB_WEBHOOK_SECRET`, `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET`, `LLM_PROVIDER`, `GEMINI_API_KEY`, `GROQ_API_KEY`, `EMBEDDING_MODEL`, `EMBEDDING_DIM`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST`, `SENTRY_DSN`, `RUN_WORKER_IN_API` (true/false), `DAILY_COST_CAP_USD`, `LOG_LEVEL`.
+`DATABASE_URL`, `JWT_SECRET`, `JWT_ACCESS_TTL_MINUTES`, `JWT_REFRESH_TTL_DAYS`, `WEB_ORIGIN`, `API_ORIGIN`, `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY` (PEM, base64 or path), `GITHUB_WEBHOOK_SECRET`, `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET`, `LLM_PROVIDER`, `EMBEDDING_PROVIDER` (gemini/fake), `GEMINI_API_KEY`, `GROQ_API_KEY`, `EMBEDDING_MODEL`, `EMBEDDING_DIM`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST`, `SENTRY_DSN`, `RUN_WORKER_IN_API` (true/false), `DAILY_COST_CAP_USD`, `LOG_LEVEL`.
 
 ## 12. Common commands (keep this section updated as the repo grows)
 
@@ -167,3 +173,30 @@ All schema changes go through Alembic migrations. Never edit the DB by hand.
 - **Stretch:** eval harness with published numbers, static-analyzer tool grounding, feedback-driven prompt tuning, "suggest fix" follow-up PR.
 
 If something is not in the milestone I named, do not build it. Suggest it instead.
+
+## 15. Decisions log
+
+Kickoff decisions, 2026-10-15. "Accepted" means the proposed default stands. Free-tier figures are still to be verified against provider docs in the milestone that uses them.
+
+1. **Cookies across Vercel/Render:** Vercel rewrite `/api/*` → Render, host-only `HttpOnly; Secure; SameSite=Lax` cookies. **Decided:** try the rewrite first; if SSE is buffered, serve the built React app from FastAPI (single origin); a paid custom domain only after that.
+2. **Render cold start vs webhooks:** GitHub waits ~10 s and does not auto-redeliver; use a free uptime pinger on `/health` and document the limitation. Accepted.
+3. **No free Render worker:** `RUN_WORKER_IN_API=true` in production with one uvicorn process; separate worker process locally. Accepted.
+4. **Supabase connection:** use the session-pooler URL (transaction pooler breaks asyncpg prepared statements; direct URL may be IPv6-only); pinger avoids project pausing; cap chunks per repo for the 500 MB tier. Accepted.
+5. **512 MB RAM:** stream tarballs to disk, process files one at a time; Bandit + Ruff first, Semgrep optional. Accepted.
+6. **Embedding provider:** separate `EMBEDDING_PROVIDER` (gemini/fake) from `LLM_PROVIDER`, since Groq likely has no embeddings API. Accepted.
+7. **`EMBEDDING_DIM`:** 768 via the Gemini model's reduced output dimension, one constant checked at startup; changing it means migration + full re-index. Accepted.
+8. **Cost on free tiers:** record "estimated cost at list price" from a dated pricing table, always labelled as an estimate. Accepted.
+9. **Privacy:** README states the demo is for public/demo repos; no code sent to Langfuse by default. Accepted.
+10. **Provider rate limits:** client-side limiter in the provider; resumable, low-concurrency eval runner. Accepted.
+11. **App vs OAuth App:** GitHub App's own client ID/secret for user login; two apps, `CodeLens-dev` and `CodeLens`. Accepted.
+12. **Role mapping:** personal-account installer = owner; org owners = admin, other org members = member; derived at login. Accepted.
+13. **Repo-level access gap:** **Decided:** add `repository_access` in the M2 migration and enforce it on every repo-scoped endpoint.
+14. **Stale membership:** sessions last at most 7 days; re-login re-syncs; `installation_repositories` webhooks handle removals. Accepted.
+15. **Large diffs:** use paginated "list PR files"; files with no patch are skipped and named in the summary. Accepted.
+16. **Stale posts:** comment with `line` + `side=RIGHT` + run `commit_id`; re-check supersede status right before posting. Accepted.
+17. **Schema gaps:** later-milestone columns arrive in that milestone's migration. Accepted.
+18. **Uninstall data:** **Decided:** hard-delete `code_chunks` and chat sessions/messages immediately; keep review metadata; purge finding text containing code after 30 days (see section 7).
+19. **Encryption at rest:** store no GitHub tokens, hash refresh tokens, rely on Supabase disk encryption for chunk text (needed in plaintext for full-text search). Accepted.
+20. **Node version:** current Node LTS (22+); Python stays 3.12 for wheel support. Accepted.
+21. **Windows dev:** `.gitattributes` with `eol=lf`; analyzers run only in Docker; helper scripts in Python, not bash. Accepted.
+22. **Misc:** rate limiter stored in Postgres behind an interface; mypy strict on `core/`, `services/`, `ai/`; tests use a separate `codelens_test` DB with per-test rollback. Accepted.
