@@ -150,11 +150,16 @@ All schema changes go through Alembic migrations. Never edit the DB by hand.
 
 ## 12. Common commands (keep this section updated as the repo grows)
 
-- Start local stack: `docker compose up --build`
+- Start local stack: `docker compose up --build` (web :5173, api :8000, postgres :5432). Stop: `docker compose down` (add `-v` to also delete the DB volume). After changing `apps/web/package.json`, rebuild with `docker compose up --build -V` so the container's `node_modules` volume is recreated.
+- API install: `cd apps/api && uv sync`
 - API tests: `cd apps/api && uv run pytest`
-- API lint/format: `cd apps/api && uv run ruff check . && uv run ruff format .`
-- Migrations: `cd apps/api && uv run alembic upgrade head` / `uv run alembic revision --autogenerate -m "msg"`
-- Web dev: `cd apps/web && npm run dev` · tests: `npm test` · E2E: `npx playwright test`
+- API lint/format: `cd apps/api && uv run ruff check . && uv run ruff format .` (CI runs `ruff format --check .`)
+- API without Docker: `cd apps/api && uv run uvicorn --factory app.main:create_app --reload` (needs `DATABASE_URL` and `WEB_ORIGIN` in the environment or in a root `.env`)
+- Migrations (from M1): `cd apps/api && uv run alembic upgrade head` / `uv run alembic revision --autogenerate -m "msg"`
+- Web install: `cd apps/web && npm ci`
+- Web dev: `npm run dev` · lint: `npm run lint` · format: `npm run format` (check: `npm run format:check`) · types: `npm run typecheck` · tests: `npm test` · build: `npm run build`
+- Web E2E (from M12): `npx playwright test`
+- Workflow lint: `docker run --rm -v "$(pwd):/repo" -w /repo rhysd/actionlint:latest`
 - Webhook tunnel for local GitHub testing: smee.io or ngrok, pointed at `POST /webhooks/github`
 
 ## 13. Definition of done (per milestone)
