@@ -12,6 +12,8 @@ dependencies = [
     "asyncpg==0.32.0",
     "alembic==1.20.0",
     "pgvector==0.5.1",
+    "pyjwt==2.15.1",  # HS256 session tokens; M3 adds the [crypto] extra for RS256 app JWTs
+    "httpx==0.28.1",  # outbound GitHub calls (respx mocks this client in tests)
 ]
 
 [dependency-groups]
@@ -21,6 +23,7 @@ dev = [
     "pytest-asyncio==1.4.0",
     "mypy==2.4.0",
     "ruff==0.17.1",
+    "respx==0.23.1",  # mocks GitHub for httpx
 ]
 
 [build-system]
