@@ -102,11 +102,13 @@ codelens/
 
 ## 7. Data model (Postgres)
 
-`users`, `installations`, `installation_members` (role: owner/admin/member), `repositories` (index_status, last_indexed_sha), `pull_requests`, `review_runs` (status, model, tokens_in/out, cost_usd, latency_ms, error, prompt_version), `findings` (file, line, severity, category, message, suggestion, confidence, user_feedback), `code_chunks` (repo_id, path, language, start_line, end_line, content, embedding vector, tsv, commit_sha), `chat_sessions`, `chat_messages` (cited_chunk_ids), `webhook_deliveries` (delivery_id UNIQUE), `jobs` (type, payload, status, attempts, run_after, locked_at, last_error), `refresh_tokens` (hashed, rotated, revoked_at), `repository_access` (user_id, repository_id, UNIQUE pair; synced from GitHub at login; added in the M2 migration).
+`users`, `installations` (github_installation_id, account_login, account_type, uninstalled_at), `installation_members` (role: owner/admin/member), `repositories` (index_status, last_indexed_sha), `pull_requests`, `review_runs` (status, model, tokens_in/out, cost_usd, latency_ms, error, prompt_version), `findings` (file, line, severity, category, message, suggestion, confidence, user_feedback), `code_chunks` (repo_id, path, language, start_line, end_line, content, embedding vector, tsv, commit_sha), `chat_sessions` (repository_id CASCADE, user_id SET NULL), `chat_messages` (cited_chunk_ids), `webhook_deliveries` (delivery_id UNIQUE), `jobs` (type, payload, status, attempts, run_after, locked_at, last_error), `refresh_tokens` (hashed, rotated, revoked_at).
+
+**Not part of M1:** `repository_access` (user_id, repository_id, UNIQUE pair; synced from GitHub at login) is created by the **M2** migration, together with the code that fills and enforces it (decision 13). M1 deliberately ships without it, because an empty table nothing enforces would suggest an authorization guarantee that does not exist yet.
 
 **Authorization uses two levels:** installation membership gives the role, and `repository_access` decides which repos of that installation a user may see. Every repo-scoped endpoint checks both.
 
-**Data retention on uninstall** (`installation.deleted`): stop the installation's jobs, then immediately hard-delete its `code_chunks`, `chat_sessions` and `chat_messages`. Keep review metadata (`pull_requests`, `review_runs`, finding file/line/severity/category/confidence/feedback). 30 days after uninstall, purge finding text that can contain code (`findings.message` and `findings.suggestion` set to NULL).
+**Data retention on uninstall** (`installation.deleted`): set `installations.uninstalled_at` (the installation, repository and review rows are KEPT; foreign-key `ON DELETE CASCADE` exists for hard deletes only and is never triggered by an uninstall), stop the installation's jobs, then immediately hard-delete its `code_chunks`, `chat_sessions` and `chat_messages`. The purge job deletes only `code_chunks` and chat data. Keep review metadata (`pull_requests`, `review_runs`, finding file/line/severity/category/confidence/feedback). 30 days after uninstall, purge finding text that can contain code (`findings.message` and `findings.suggestion` set to NULL).
 
 **Schema growth:** columns that later milestones need (for example `repositories.settings`, `review_runs.head_sha`, `findings.dismissed`, `code_chunks.symbol` / `content_hash`, per-agent usage) are added by that milestone's own migration, not up front.
 
@@ -146,7 +148,7 @@ All schema changes go through Alembic migrations. Never edit the DB by hand.
 
 ## 11. Environment variables (document all in `.env.example`)
 
-`DATABASE_URL`, `JWT_SECRET`, `JWT_ACCESS_TTL_MINUTES`, `JWT_REFRESH_TTL_DAYS`, `WEB_ORIGIN`, `API_ORIGIN`, `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY` (PEM, base64 or path), `GITHUB_WEBHOOK_SECRET`, `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET`, `LLM_PROVIDER`, `EMBEDDING_PROVIDER` (gemini/fake), `GEMINI_API_KEY`, `GROQ_API_KEY`, `EMBEDDING_MODEL`, `EMBEDDING_DIM`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST`, `SENTRY_DSN`, `RUN_WORKER_IN_API` (true/false), `DAILY_COST_CAP_USD`, `LOG_LEVEL`.
+`DATABASE_URL`, `JWT_SECRET`, `JWT_ACCESS_TTL_MINUTES`, `JWT_REFRESH_TTL_DAYS`, `WEB_ORIGIN`, `API_ORIGIN`, `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY` (PEM, base64 or path), `GITHUB_WEBHOOK_SECRET`, `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET`, `LLM_PROVIDER`, `EMBEDDING_PROVIDER` (gemini/fake), `GEMINI_API_KEY`, `GROQ_API_KEY`, `EMBEDDING_MODEL`, `EMBEDDING_DIM`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST`, `SENTRY_DSN`, `RUN_WORKER_IN_API` (true/false), `DAILY_COST_CAP_USD`, `LOG_LEVEL`, `ENVIRONMENT` (development/test/production; defaults to production; the seed script needs development).
 
 ## 12. Common commands (keep this section updated as the repo grows)
 
@@ -155,7 +157,11 @@ All schema changes go through Alembic migrations. Never edit the DB by hand.
 - API tests: `cd apps/api && uv run pytest`
 - API lint/format: `cd apps/api && uv run ruff check . && uv run ruff format .` (CI runs `ruff format --check .`)
 - API without Docker: `cd apps/api && uv run uvicorn --factory app.main:create_app --reload` (needs `DATABASE_URL` and `WEB_ORIGIN` in the environment or in a root `.env`)
-- Migrations (from M1): `cd apps/api && uv run alembic upgrade head` / `uv run alembic revision --autogenerate -m "msg"`
+- Migrations (from M1): `cd apps/api && uv run alembic upgrade head` / `uv run alembic revision --autogenerate -m "msg"`. Review autogenerated migrations by hand (pgvector, partial and generated-column pieces need care). A test fails if models and migrations drift.
+- API tests need Postgres: `docker compose up -d postgres` first. `codelens_test` is created by `infra/postgres/init/` on a fresh volume (older volumes: the test run creates it). If port 5432 is taken on your machine, set `POSTGRES_PORT=5433` in the root `.env` and `TEST_DATABASE_URL=postgresql+asyncpg://codelens:codelens@localhost:5433/codelens_test` in your shell.
+- API types: `cd apps/api && uv run mypy` (strict on `app/core/`; `services/` and `ai/` join as they are filled)
+- Seed fake dev data (needs `ENVIRONMENT=development` and a localhost DB): `cd apps/api && uv run python -m scripts.seed`
+- Health: `GET /health` (liveness, always 200, reports `database` and `revision`) and `GET /ready` (503 when the DB is down)
 - Web install: `cd apps/web && npm ci`
 - Web dev: `npm run dev` · lint: `npm run lint` · format: `npm run format` (check: `npm run format:check`) · types: `npm run typecheck` · tests: `npm test` · build: `npm run build`
 - Web E2E (from M12): `npx playwright test`
@@ -200,7 +206,7 @@ Kickoff decisions, 2026-10-15. "Accepted" means the proposed default stands. Fre
 15. **Large diffs:** use paginated "list PR files"; files with no patch are skipped and named in the summary. Accepted.
 16. **Stale posts:** comment with `line` + `side=RIGHT` + run `commit_id`; re-check supersede status right before posting. Accepted.
 17. **Schema gaps:** later-milestone columns arrive in that milestone's migration. Accepted.
-18. **Uninstall data:** **Decided:** hard-delete `code_chunks` and chat sessions/messages immediately; keep review metadata; purge finding text containing code after 30 days (see section 7).
+18. **Uninstall data:** **Decided:** uninstall sets `installations.uninstalled_at` and deletes nothing by cascade; the purge job hard-deletes only `code_chunks` and chat sessions/messages immediately; keep review metadata; purge finding text containing code after 30 days (see section 7 and ADR 0001).
 19. **Encryption at rest:** store no GitHub tokens, hash refresh tokens, rely on Supabase disk encryption for chunk text (needed in plaintext for full-text search). Accepted.
 20. **Node version:** current Node LTS (22+); Python stays 3.12 for wheel support. Accepted.
 21. **Windows dev:** `.gitattributes` with `eol=lf`; analyzers run only in Docker; helper scripts in Python, not bash. Accepted.

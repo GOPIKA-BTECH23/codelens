@@ -2,7 +2,7 @@
 
 AI code review for GitHub pull requests, plus chat with your repo: grounded answers with `file:line` citations.
 
-> **Status: under construction.** Milestone M0 (foundation) is done; nothing is deployed yet. See the checklist below.
+> **Status: under construction.** Milestones M0 (foundation) and M1 (database layer) are done; nothing is deployed yet. See the checklist below.
 
 ## Architecture
 
@@ -26,22 +26,33 @@ Then open:
 | -------------------- | ---------------------------- |
 | Web app              | http://localhost:5173        |
 | API health           | http://localhost:8000/health |
+| API readiness        | http://localhost:8000/ready  |
 | API docs (Swagger)   | http://localhost:8000/docs   |
 | Postgres + pgvector  | `localhost:5432`             |
 
-The web page shows the live `/health` response from the API. Defaults work with no `.env`; see [.env.example](.env.example) for every variable the project will eventually use.
+The web page shows the live `/health` response from the API (including the current database migration). Defaults work with no `.env`; see [.env.example](.env.example) for every variable the project will eventually use.
 
-Run the checks without Docker:
+Set up the database (the API container does not migrate for you yet):
 
 ```bash
-cd apps/api && uv sync && uv run ruff check . && uv run pytest
+cd apps/api
+uv run alembic upgrade head                 # create the schema
+ENVIRONMENT=development uv run python -m scripts.seed   # optional: fake dev data
+```
+
+If port 5432 is already used on your machine, set `POSTGRES_PORT=5433` in a root `.env`, restart Postgres, and use that port in `DATABASE_URL`.
+
+Run the checks without Docker (the API tests need `docker compose up -d postgres`):
+
+```bash
+cd apps/api && uv sync && uv run ruff check . && uv run mypy && uv run pytest
 cd apps/web && npm ci && npm run lint && npm run typecheck && npm test && npm run build
 ```
 
 ## Milestones
 
 - [x] M0 Foundation and monorepo scaffolding
-- [ ] M1 Database layer
+- [x] M1 Database layer
 - [ ] M2 Authentication, sessions and RBAC
 - [ ] M3 GitHub App integration and webhook intake
 - [ ] M4 Worker and job processing
