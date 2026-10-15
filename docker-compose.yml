@@ -1,0 +1,70 @@
+# Local development stack: `docker compose up --build`
+#   web  -> http://localhost:5173   (Vite dev server, proxies /api to the api service)
+#   api  -> http://localhost:8000   (FastAPI, docs at /docs)
+#   db   -> localhost:5432          (Postgres + pgvector)
+# Values below are DEV-ONLY defaults; override them in a root .env (gitignored) if you like.
+
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.7-pg17-bookworm
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-codelens}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-codelens}
+      POSTGRES_DB: ${POSTGRES_DB:-codelens}
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # Marks the container "healthy" only when Postgres accepts connections.
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile.dev
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-codelens}:${POSTGRES_PASSWORD:-codelens}@postgres:5432/${POSTGRES_DB:-codelens}
+      WEB_ORIGIN: http://localhost:5173
+      API_ORIGIN: http://localhost:8000
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - '8000:8000'
+    volumes:
+      - ./apps/api:/app # live code reload
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile.dev
+    environment:
+      API_PROXY_TARGET: http://api:8000
+      VITE_USE_POLLING: 'true' # file events do not cross the Windows bind mount
+    ports:
+      - '5173:5173'
+    volumes:
+      - ./apps/web:/app # live code reload
+      - /app/node_modules # keep the Linux node_modules from the image, not the host's
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  pgdata:
