@@ -34,6 +34,13 @@ services:
       API_ORIGIN: http://localhost:8000
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       ENVIRONMENT: development
+      # Secrets come from the root .env (never hard-code them here). `:?` makes compose stop
+      # with this message instead of starting an API that would crash at boot.
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env (openssl rand -hex 32)}
+      JWT_ACCESS_TTL_MINUTES: ${JWT_ACCESS_TTL_MINUTES:-15}
+      JWT_REFRESH_TTL_DAYS: ${JWT_REFRESH_TTL_DAYS:-7}
+      GITHUB_OAUTH_CLIENT_ID: ${GITHUB_OAUTH_CLIENT_ID:?set GITHUB_OAUTH_CLIENT_ID in .env}
+      GITHUB_OAUTH_CLIENT_SECRET: ${GITHUB_OAUTH_CLIENT_SECRET:?set GITHUB_OAUTH_CLIENT_SECRET in .env}
     ports:
       - '8000:8000'
     volumes:
