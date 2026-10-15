@@ -1,4 +1,5 @@
 from fastapi.testclient import TestClient
+from pydantic import SecretStr
 
 from app import __version__
 from app.config import Settings
@@ -7,10 +8,8 @@ from app.main import create_app
 
 def _unreachable_settings(settings: Settings) -> Settings:
     # Port 1 refuses connections immediately, so these tests need no database.
-    return Settings(
-        _env_file=None,
-        database_url="postgresql+asyncpg://u:p@127.0.0.1:1/none",
-        web_origin=settings.web_origin,
+    return settings.model_copy(
+        update={"database_url": SecretStr("postgresql+asyncpg://u:p@127.0.0.1:1/none")}
     )
 
 
