@@ -2,7 +2,7 @@
 
 AI code review for GitHub pull requests, plus chat with your repo: grounded answers with `file:line` citations.
 
-> **Status: under construction.** Milestones M0 (foundation) and M1 (database layer) are done; nothing is deployed yet. See the checklist below.
+> **Status: under construction.** Milestones M0 (foundation), M1 (database layer) and M2 (GitHub sign-in, sessions and RBAC) are done; nothing is deployed yet. See the checklist below.
 
 ## Architecture
 
@@ -17,21 +17,25 @@ Requirements: Docker Desktop. For running tests outside Docker you also need Nod
 ```bash
 git clone https://github.com/GOPIKA-BTECH23/codelens.git
 cd codelens
-cp .env.example .env   # local settings; gitignored. Needed for commands run outside Docker
+cp .env.example .env   # local settings; gitignored
+# edit .env: JWT_SECRET, GITHUB_OAUTH_CLIENT_ID, GITHUB_OAUTH_CLIENT_SECRET (see below)
 docker compose up --build
 ```
 
+Sign-in needs a GitHub App of your own (free, a few minutes): GitHub → Settings → Developer settings → GitHub Apps → New. Set the **callback URL** to `http://localhost:5173/api/auth/github/callback`, give it **Organization permissions → Members: Read-only**, then put its Client ID and a client secret in `.env`. Generate `JWT_SECRET` with `openssl rand -hex 32`. The API refuses to start without these.
+
 Then open:
 
-| What                 | URL                          |
-| -------------------- | ---------------------------- |
-| Web app              | http://localhost:5173        |
-| API health           | http://localhost:8000/health |
-| API readiness        | http://localhost:8000/ready  |
-| API docs (Swagger)   | http://localhost:8000/docs   |
-| Postgres + pgvector  | `localhost:5432`             |
+| What                 | URL                                |
+| -------------------- | ---------------------------------- |
+| Web app (sign in)    | http://localhost:5173              |
+| API status page      | http://localhost:5173/health       |
+| API health           | http://localhost:8000/health       |
+| API readiness        | http://localhost:8000/ready        |
+| API docs (Swagger)   | http://localhost:8000/docs         |
+| Postgres + pgvector  | `localhost:5432`                   |
 
-The web page shows the live `/health` response from the API (including the current database migration). Defaults work with no `.env`; see [.env.example](.env.example) for every variable the project will eventually use.
+Always use the app through `http://localhost:5173`: the browser reaches the API at `/api/*` on the same origin, which is what makes the httpOnly session cookies work ([ADR 0002](docs/adr/0002-cookie-and-csrf-strategy.md)). See [.env.example](.env.example) for every variable.
 
 Set up the database (the API container does not migrate for you yet):
 
@@ -54,7 +58,7 @@ cd apps/web && npm ci && npm run lint && npm run typecheck && npm test && npm ru
 
 - [x] M0 Foundation and monorepo scaffolding
 - [x] M1 Database layer
-- [ ] M2 Authentication, sessions and RBAC
+- [x] M2 Authentication, sessions and RBAC
 - [ ] M3 GitHub App integration and webhook intake
 - [ ] M4 Worker and job processing
 - [ ] M5 LLM layer and the first agent
