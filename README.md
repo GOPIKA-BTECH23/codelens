@@ -2,7 +2,7 @@
 
 AI code review for GitHub pull requests, plus chat with your repo: grounded answers with `file:line` citations.
 
-> **Status: under construction.** Milestone M0 (foundation) is in review; nothing is deployed yet. See the checklist below.
+> **Status: under construction.** Milestone M0 (foundation) is done; nothing is deployed yet. See the checklist below.
 
 ## Architecture
 
@@ -40,7 +40,7 @@ cd apps/web && npm ci && npm run lint && npm run typecheck && npm test && npm ru
 
 ## Milestones
 
-- [ ] M0 Foundation and monorepo scaffolding
+- [x] M0 Foundation and monorepo scaffolding
 - [ ] M1 Database layer
 - [ ] M2 Authentication, sessions and RBAC
 - [ ] M3 GitHub App integration and webhook intake
