@@ -6,25 +6,34 @@ from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
+from dotenv import dotenv_values
 from sqlalchemy import text
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import create_async_engine
 
 API_ROOT = Path(__file__).resolve().parents[1]
+ROOT_ENV_FILE = API_ROOT.parents[1] / ".env"
+
+
+def _setting(name: str) -> str | None:
+    """A variable from the real environment, else from the repo-root .env (never mutating
+    os.environ). Settings reads that .env itself, but pytest helpers such as POSTGRES_PORT
+    are not Settings fields, so they need this."""
+    return os.environ.get(name) or dotenv_values(ROOT_ENV_FILE).get(name)
 
 
 def get_test_database_url() -> str:
     """URL of the shared test database. It must be named *_test: tests wipe it.
 
     Order: TEST_DATABASE_URL, then DATABASE_URL if it already points at a *_test database
-    (that is what CI sets), then the docker-compose default (POSTGRES_PORT is honoured when
-    5432 is taken on your machine).
+    (that is what CI sets), then the docker-compose default. POSTGRES_PORT is honoured (from
+    the environment or the root .env) when 5432 is taken on your machine.
     """
     for name in ("TEST_DATABASE_URL", "DATABASE_URL"):
-        url = os.environ.get(name)
+        url = _setting(name)
         if url and (make_url(url).database or "").endswith("_test"):
             return url
-    port = os.environ.get("POSTGRES_PORT", "5432")
+    port = _setting("POSTGRES_PORT") or "5432"
     return f"postgresql+asyncpg://codelens:codelens@localhost:{port}/codelens_test"
 
 
