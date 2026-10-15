@@ -1,8 +1,14 @@
 """Import every model so Base.metadata knows all tables (Alembic autogenerate needs this)."""
 
-from app.db.models.accounts import Installation, InstallationMember, RefreshToken, User
+from app.db.models.accounts import (
+    Installation,
+    InstallationMember,
+    RateLimitCounter,
+    RefreshToken,
+    User,
+)
 from app.db.models.code import ChatMessage, ChatSession, CodeChunk, Job, WebhookDelivery
-from app.db.models.repos import Finding, PullRequest, Repository, ReviewRun
+from app.db.models.repos import Finding, PullRequest, Repository, RepositoryAccess, ReviewRun
 
 __all__ = [
     "ChatMessage",
@@ -13,8 +19,10 @@ __all__ = [
     "InstallationMember",
     "Job",
     "PullRequest",
+    "RateLimitCounter",
     "RefreshToken",
     "Repository",
+    "RepositoryAccess",
     "ReviewRun",
     "User",
     "WebhookDelivery",

@@ -21,7 +21,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.base import Base, TimestampMixin, UuidPkMixin, check_in
+from app.db.base import Base, CreatedAtMixin, TimestampMixin, UuidPkMixin, check_in
 from app.db.models.enums import (
     FindingFeedback,
     IndexStatus,
@@ -54,6 +54,27 @@ class Repository(UuidPkMixin, TimestampMixin, Base):
     __table_args__ = (
         check_in("index_status", IndexStatus),
         Index("ix_repositories_installation_id", "installation_id"),
+    )
+
+
+class RepositoryAccess(UuidPkMixin, CreatedAtMixin, Base):
+    """Which repositories of an installation a user may see (CLAUDE.md decision 13).
+
+    Installation membership gives the role; this table narrows visibility to the repos
+    GitHub says the user can access. Replaced wholesale for the user at every login.
+    """
+
+    __tablename__ = "repository_access"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("users.id", ondelete="CASCADE"))
+    repository_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("repositories.id", ondelete="CASCADE")
+    )
+
+    __table_args__ = (
+        # Also serves "repos of a user" (the leading column).
+        UniqueConstraint("user_id", "repository_id", name="uq_repository_access_pair"),
+        Index("ix_repository_access_repository_id", "repository_id"),
     )
 
 
