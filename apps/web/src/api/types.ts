@@ -5,7 +5,9 @@
 export interface HealthResponse {
   status: 'ok'
   version: string
-  database: 'ok' | 'error' | 'not_configured'
+  database: 'ok' | 'unavailable'
+  /** Current Alembic revision; null when the database is unreachable or not migrated. */
+  revision: string | null
 }
 
 /** Every error response from the API has this shape. */

@@ -27,6 +27,8 @@ export function HealthPage() {
             <dd>{data.version}</dd>
             <dt className="text-gray-600">Database</dt>
             <dd>{data.database}</dd>
+            <dt className="text-gray-600">Migration</dt>
+            <dd>{data.revision ?? 'none'}</dd>
           </dl>
         )}
       </section>
