@@ -124,7 +124,7 @@ They fail differently, which is why M9 combines them (reciprocal rank fusion). `
 
 1. Review the branch and push it: `git push -u origin feat/m1-database`, then open a PR and wait for CI.
 2. If you already had the `codelens_pgdata` volume, nothing is required: the test run creates `codelens_test` itself. For a fully fresh start: `docker compose down -v` (this deletes your dev data), then `docker compose up`.
-3. If port 5432 is taken on your Windows machine (a native PostgreSQL service was listening on it here): put `POSTGRES_PORT=54329` (any free port) in the root `.env`, and use that port in `DATABASE_URL` / `TEST_DATABASE_URL` when running outside Docker.
+3. If port 5432 is taken on your Windows machine (a native PostgreSQL service was listening on it here): put `POSTGRES_PORT=54329` (any free port) in the root `.env`, and use the same port in the `DATABASE_URL` line of that file; tests and Alembic read it from there.
 4. Apply the schema to your dev database: `cd apps/api && uv run alembic upgrade head`, optionally followed by `ENVIRONMENT=development uv run python -m scripts.seed`.
 
 ## Quiz (answer in your own words)

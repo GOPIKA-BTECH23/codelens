@@ -17,6 +17,7 @@ Requirements: Docker Desktop. For running tests outside Docker you also need Nod
 ```bash
 git clone https://github.com/GOPIKA-BTECH23/codelens.git
 cd codelens
+cp .env.example .env   # local settings; gitignored. Needed for commands run outside Docker
 docker compose up --build
 ```
 
@@ -40,7 +41,7 @@ uv run alembic upgrade head                 # create the schema
 ENVIRONMENT=development uv run python -m scripts.seed   # optional: fake dev data
 ```
 
-If port 5432 is already used on your machine, set `POSTGRES_PORT=5433` in a root `.env`, restart Postgres, and use that port in `DATABASE_URL`.
+If port 5432 is already used on your machine, set `POSTGRES_PORT` (for example `54329`) in the root `.env`, restart Postgres (`docker compose up -d postgres`), and use the same port in that file's `DATABASE_URL`.
 
 Run the checks without Docker (the API tests need `docker compose up -d postgres`):
 
