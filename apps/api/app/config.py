@@ -6,6 +6,8 @@ from typing import Literal
 from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.db.constants import EMBEDDING_DIM
+
 
 class Settings(BaseSettings):
     """Environment-driven settings.
@@ -27,6 +29,21 @@ class Settings(BaseSettings):
     web_origin: str
     api_origin: str = "http://localhost:8000"
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
+    # Defaults to "production" so a forgotten variable can never unlock dev-only tooling
+    # (the seed script refuses to run unless this is "development").
+    environment: Literal["development", "test", "production"] = "production"
+    # Not a free setting: it must equal the column size baked into the schema.
+    embedding_dim: int = EMBEDDING_DIM
+
+    @field_validator("embedding_dim")
+    @classmethod
+    def _embedding_dim_matches_schema(cls, value: int) -> int:
+        if value != EMBEDDING_DIM:
+            raise ValueError(
+                f"EMBEDDING_DIM={value} does not match the schema ({EMBEDDING_DIM}). "
+                "Changing it needs a migration and a full re-index (see ADR 0001)."
+            )
+        return value
 
     @field_validator("database_url")
     @classmethod
