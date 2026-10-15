@@ -1,7 +1,10 @@
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable, Iterator
+from contextlib import ExitStack
 
 import pytest
 import pytest_asyncio
+import respx
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
@@ -14,16 +17,14 @@ from sqlalchemy.ext.asyncio import (
 from app.config import Settings
 from app.main import create_app
 from tests import db_utils
+from tests.app_utils import browser, make_settings
+from tests.fake_github import FakeGitHub
 
 
 @pytest.fixture
 def settings() -> Settings:
-    # _env_file=None so a developer's local .env can never leak into tests.
-    return Settings(
-        _env_file=None,
-        database_url="postgresql+asyncpg://test:test@localhost:5432/test",
-        web_origin="http://localhost:5173",
-    )
+    # make_settings uses _env_file=None, so a developer's local .env can never leak in.
+    return make_settings()
 
 
 @pytest.fixture
@@ -86,3 +87,44 @@ async def session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSessio
 async def session(session_factory: async_sessionmaker[AsyncSession]) -> AsyncIterator[AsyncSession]:
     async with session_factory() as s:
         yield s
+
+
+# --- API + "browser" fixtures (M2) --------------------------------------------------------
+
+
+@pytest_asyncio.fixture
+async def api_settings(
+    migrated_db: str, session_factory: async_sessionmaker[AsyncSession]
+) -> Settings:
+    """Settings for an app on the (freshly emptied) test database. The auth rate limit is
+    raised so ordinary tests never trip it; the rate-limit test lowers it again."""
+    return make_settings(database_url=migrated_db, auth_rate_limit_per_minute=1000)
+
+
+OpenBrowser = Callable[..., TestClient]
+
+
+@pytest.fixture
+def open_browser(api_settings: Settings) -> Iterator[OpenBrowser]:
+    """Open one simulated browser (own cookie jar). Each gets its OWN app instance: an
+    engine's pooled connections belong to the event loop that made them, and every
+    TestClient runs the app on its own loop."""
+    with ExitStack() as stack:
+
+        def _open(
+            *,
+            csrf_header: bool = True,
+            settings: Settings | None = None,
+            customize: Callable[[FastAPI], None] | None = None,
+        ) -> TestClient:
+            app = create_app(settings or api_settings)
+            if customize:
+                customize(app)
+            return stack.enter_context(browser(app, csrf_header=csrf_header))
+
+        yield _open
+
+
+@pytest.fixture
+def github(respx_mock: respx.MockRouter) -> FakeGitHub:
+    return FakeGitHub(respx_mock)

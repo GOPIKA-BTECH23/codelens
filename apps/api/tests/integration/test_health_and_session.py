@@ -10,16 +10,19 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app import __version__
 from app.config import Settings
+from app.core.csrf import CSRF_HEADER, CSRF_HEADER_VALUE
 from app.db.models import User
 from app.deps import SessionDep
 from app.main import create_app
 from tests import db_utils
+from tests.app_utils import make_settings
 
 
 def _settings(url: str) -> Settings:
-    return Settings(
-        _env_file=None, database_url=url, web_origin="http://localhost:5173", environment="test"
-    )
+    return make_settings(database_url=url)
+
+
+CSRF_HEADERS = {CSRF_HEADER: CSRF_HEADER_VALUE}
 
 
 def _head(url: str) -> str | None:
@@ -63,7 +66,7 @@ async def test_get_session_commits_when_the_handler_succeeds(
 ) -> None:
     def call() -> int:
         with TestClient(_app_with_routes(migrated_db)) as client:
-            return client.post("/_test/ok").status_code
+            return client.post("/_test/ok", headers=CSRF_HEADERS).status_code
 
     assert await asyncio.to_thread(call) == 200
 
@@ -78,7 +81,7 @@ async def test_get_session_rolls_back_when_the_handler_raises(
 ) -> None:
     def call() -> int:
         with TestClient(_app_with_routes(migrated_db)) as client:
-            return client.post("/_test/boom").status_code
+            return client.post("/_test/boom", headers=CSRF_HEADERS).status_code
 
     assert await asyncio.to_thread(call) == 400
 
