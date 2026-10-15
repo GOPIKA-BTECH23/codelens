@@ -1,0 +1,124 @@
+"""Repositories, pull requests, review runs and findings."""
+
+import uuid
+from datetime import datetime
+from decimal import Decimal
+
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+    Uuid,
+    text,
+)
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.db.base import Base, TimestampMixin, UuidPkMixin, check_in
+from app.db.models.enums import (
+    FindingFeedback,
+    IndexStatus,
+    PullRequestState,
+    RunStatus,
+    Severity,
+)
+
+# Every FK below uses ON DELETE CASCADE, but cascades only matter for HARD deletes (an admin
+# deleting a row, a test cleaning up). Uninstalling the app is NOT a delete: it sets
+# installations.uninstalled_at and a purge job removes only code_chunks and chat data, so
+# review metadata survives. See docs/adr/0001-database-schema.md.
+
+
+class Repository(UuidPkMixin, TimestampMixin, Base):
+    __tablename__ = "repositories"
+
+    installation_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("installations.id", ondelete="CASCADE")
+    )
+    github_repo_id: Mapped[int] = mapped_column(BigInteger, unique=True)
+    full_name: Mapped[str] = mapped_column(String(255))
+    default_branch: Mapped[str] = mapped_column(String(255), server_default="main")
+    is_private: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
+    index_status: Mapped[str] = mapped_column(
+        String(20), server_default=IndexStatus.NOT_INDEXED.value
+    )
+    last_indexed_sha: Mapped[str | None] = mapped_column(String(40))
+
+    __table_args__ = (
+        check_in("index_status", IndexStatus),
+        Index("ix_repositories_installation_id", "installation_id"),
+    )
+
+
+class PullRequest(UuidPkMixin, TimestampMixin, Base):
+    __tablename__ = "pull_requests"
+
+    repository_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("repositories.id", ondelete="CASCADE")
+    )
+    number: Mapped[int] = mapped_column(Integer)
+    title: Mapped[str] = mapped_column(String(500))
+    author_login: Mapped[str] = mapped_column(String(100))
+    state: Mapped[str] = mapped_column(String(20), server_default=PullRequestState.OPEN.value)
+
+    __table_args__ = (
+        UniqueConstraint("repository_id", "number", name="uq_pull_requests_repo_number"),
+        check_in("state", PullRequestState),
+    )
+
+
+class ReviewRun(UuidPkMixin, TimestampMixin, Base):
+    __tablename__ = "review_runs"
+
+    pull_request_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("pull_requests.id", ondelete="CASCADE")
+    )
+    status: Mapped[str] = mapped_column(String(20), server_default=RunStatus.QUEUED.value)
+    model: Mapped[str | None] = mapped_column(String(100))
+    tokens_in: Mapped[int | None] = mapped_column(Integer)
+    tokens_out: Mapped[int | None] = mapped_column(Integer)
+    # Estimated cost at list price (CLAUDE.md decision 8), never a real bill.
+    cost_usd: Mapped[Decimal | None] = mapped_column(Numeric(12, 6))
+    latency_ms: Mapped[int | None] = mapped_column(Integer)
+    error: Mapped[str | None] = mapped_column(Text)
+    prompt_version: Mapped[str | None] = mapped_column(String(50))
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        check_in("status", RunStatus),
+        # "latest runs of a PR" and "supersede the older queued/running runs of a PR".
+        Index("ix_review_runs_pull_request_id_created_at", "pull_request_id", "created_at"),
+        Index("ix_review_runs_status", "status"),
+    )
+
+
+class Finding(UuidPkMixin, TimestampMixin, Base):
+    __tablename__ = "findings"
+
+    review_run_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("review_runs.id", ondelete="CASCADE")
+    )
+    file: Mapped[str] = mapped_column(String(1000))
+    line: Mapped[int] = mapped_column(Integer)
+    severity: Mapped[str] = mapped_column(String(20))
+    category: Mapped[str] = mapped_column(String(50))
+    # message and suggestion can quote code, so they are nullable: the retention job sets
+    # them to NULL 30 days after uninstall (CLAUDE.md section 7).
+    message: Mapped[str | None] = mapped_column(Text)
+    suggestion: Mapped[str | None] = mapped_column(Text)
+    confidence: Mapped[float] = mapped_column(Float)
+    user_feedback: Mapped[str | None] = mapped_column(String(20))
+
+    __table_args__ = (
+        check_in("severity", Severity),
+        check_in("user_feedback", FindingFeedback),
+        Index("ix_findings_review_run_id", "review_run_id"),
+    )

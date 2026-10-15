@@ -8,12 +8,18 @@ dependencies = [
     "uvicorn[standard]==0.54.0",
     "pydantic==2.14.1",
     "pydantic-settings==2.16.0",
+    "sqlalchemy[asyncio]==2.1.4",
+    "asyncpg==0.32.0",
+    "alembic==1.20.0",
+    "pgvector==0.5.1",
 ]
 
 [dependency-groups]
 dev = [
     "httpx2==2.13.1",  # used by Starlette/FastAPI TestClient (replaces httpx there)
     "pytest==9.1.1",
+    "pytest-asyncio==1.4.0",
+    "mypy==2.4.0",
     "ruff==0.17.1",
 ]
 
@@ -34,6 +40,16 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "C4"]
 
+[tool.mypy]
+python_version = "3.12"
+files = ["app/core"]
+# CLAUDE.md decision 22: strict on core/, services/ and ai/. Each directory is added to
+# `files` (and to the CI step) in the milestone that fills it.
+strict = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"

@@ -1,7 +1,7 @@
 # Local development stack: `docker compose up --build`
 #   web  -> http://localhost:5173   (Vite dev server, proxies /api to the api service)
 #   api  -> http://localhost:8000   (FastAPI, docs at /docs)
-#   db   -> localhost:5432          (Postgres + pgvector)
+#   db   -> localhost:${POSTGRES_PORT:-5432} (Postgres + pgvector)
 # Values below are DEV-ONLY defaults; override them in a root .env (gitignored) if you like.
 
 services:
@@ -12,9 +12,10 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-codelens}
       POSTGRES_DB: ${POSTGRES_DB:-codelens}
     ports:
-      - '5432:5432'
+      - '${POSTGRES_PORT:-5432}:5432' # set POSTGRES_PORT if 5432 is taken on your machine
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro # creates codelens_test on first start
     healthcheck:
       # Marks the container "healthy" only when Postgres accepts connections.
       test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
@@ -32,6 +33,7 @@ services:
       WEB_ORIGIN: http://localhost:5173
       API_ORIGIN: http://localhost:8000
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      ENVIRONMENT: development
     ports:
       - '8000:8000'
     volumes:

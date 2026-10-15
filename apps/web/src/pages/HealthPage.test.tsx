@@ -24,13 +24,16 @@ describe('HealthPage', () => {
     const fetchMock = mockFetchJson(200, {
       status: 'ok',
       version: '0.1.0',
-      database: 'not_configured',
+      database: 'ok',
+      revision: '80cbc1009c2f',
     })
 
     renderPage()
 
     expect(await screen.findByText('0.1.0')).toBeInTheDocument()
-    expect(screen.getByText('not_configured')).toBeInTheDocument()
+    // Status and Database both read "ok", so look the value up by its label.
+    expect(screen.getByText('Database').nextElementSibling).toHaveTextContent('ok')
+    expect(screen.getByText('80cbc1009c2f')).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith('/api/health', expect.anything())
   })
 

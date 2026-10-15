@@ -44,6 +44,12 @@ class UnauthorizedError(AppError):
     default_message = "Authentication required"
 
 
+class ServiceUnavailableError(AppError):
+    status_code = 503
+    code = "service_unavailable"
+    default_message = "Service unavailable"
+
+
 def _error_response(
     request: Request,
     status_code: int,
