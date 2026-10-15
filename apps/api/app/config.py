@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=(".env", "../../.env"),
         extra="ignore",  # .env.example documents variables that later milestones will use
+        # Pydantic normally echoes the rejected value in the error (input_value='...'). For
+        # settings that value is often a secret, and startup errors end up in deploy logs.
+        hide_input_in_errors=True,
     )
 
     # SecretStr keeps the connection string (it contains the password) out of logs and reprs.
@@ -80,6 +83,34 @@ class Settings(BaseSettings):
         if not value.startswith(("http://", "https://")):
             raise ValueError("must start with http:// or https://")
         return value.rstrip("/")  # origins are compared as exact strings later (CORS, redirects)
+
+    @field_validator(
+        "jwt_secret", "github_oauth_client_id", "github_oauth_client_secret", mode="before"
+    )
+    @classmethod
+    def _no_paste_artifacts(cls, value: object) -> object:
+        """Catch copy-paste mistakes in credentials at startup instead of at the first login.
+
+        A `<placeholder>` left around a pasted secret, quotes inside the value, or a stray
+        space all produce a credential that looks set but is wrong (GitHub then answers
+        `incorrect_client_credentials`). No exact length or format is enforced: providers
+        change those. The message never includes the value.
+        """
+        text = value.get_secret_value() if isinstance(value, SecretStr) else value
+        if not isinstance(text, str):
+            return value
+        problems = []
+        if text != text.strip():
+            problems.append("leading or trailing whitespace")
+        if "<" in text or ">" in text:
+            problems.append("angle brackets (a leftover <placeholder>?)")
+        if '"' in text or "'" in text:
+            problems.append("quote characters")
+        if problems:
+            raise ValueError(
+                f"contains {' and '.join(problems)}; paste the bare value in .env (value not shown)"
+            )
+        return value
 
     @field_validator("jwt_secret")
     @classmethod

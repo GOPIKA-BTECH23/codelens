@@ -47,6 +47,56 @@ def test_weak_or_placeholder_jwt_secret_is_rejected(secret: str) -> None:
         make_settings(jwt_secret=secret)
 
 
+CREDENTIAL_FIELDS = ["jwt_secret", "github_oauth_client_id", "github_oauth_client_secret"]
+# Each bad value embeds this marker, so the test can prove the value is never echoed.
+MARKER = "Zq9SentinelValue4fd0c1b2a3e4f5a6b7c8d9e0"
+
+
+@pytest.mark.parametrize("field", CREDENTIAL_FIELDS)
+@pytest.mark.parametrize(
+    ("bad_value", "reason"),
+    [
+        (f"<{MARKER}>", "angle brackets"),
+        (f"{MARKER}>", "angle brackets"),
+        (f'"{MARKER}"', "quote characters"),
+        (f"{MARKER}'", "quote characters"),
+        (f" {MARKER}", "leading or trailing whitespace"),
+        (f"{MARKER}\t", "leading or trailing whitespace"),
+        (f"{MARKER}\r", "leading or trailing whitespace"),  # CRLF .env written on Windows
+    ],
+)
+def test_credentials_with_paste_artifacts_are_rejected_without_echoing_them(
+    field: str, bad_value: str, reason: str
+) -> None:
+    with pytest.raises(ValidationError) as exc_info:
+        make_settings(**{field: bad_value})
+
+    message = str(exc_info.value)
+    assert field in message
+    assert reason in message
+    assert MARKER not in message  # neither the value nor any part of it
+
+
+@pytest.mark.parametrize("field", CREDENTIAL_FIELDS)
+def test_plain_credentials_of_any_length_and_alphabet_are_accepted(field: str) -> None:
+    # No exact length or hex format is enforced: providers change those.
+    value = "Iv23-Mixed_Case.value~0123456789+/=ABCDEFG"
+    settings = make_settings(**{field: value})
+    stored = getattr(settings, field)
+    assert (stored if isinstance(stored, str) else stored.get_secret_value()) == value
+
+
+def test_no_validation_error_ever_prints_the_rejected_value() -> None:
+    """hide_input_in_errors: covers every field, including the existing checks."""
+    with pytest.raises(ValidationError) as exc_info:
+        make_settings(
+            jwt_secret=f"short{MARKER[:8]}",
+            database_url=f"mysql://user:{MARKER}@host/db",
+        )
+    assert MARKER[:8] not in str(exc_info.value)
+    assert MARKER not in str(exc_info.value)
+
+
 def test_empty_client_secret_is_rejected() -> None:
     with pytest.raises(ValidationError, match="github_oauth_client_secret"):
         make_settings(github_oauth_client_secret="")
