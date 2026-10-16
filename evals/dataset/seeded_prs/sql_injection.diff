@@ -1,0 +1,18 @@
+diff --git a/app/users.py b/app/users.py
+index bd9aa3e..935ae5c 100644
+--- a/app/users.py
++++ b/app/users.py
+@@ -3,3 +3,13 @@
+ 
+ def get_user(conn, user_id: int):
+     return conn.execute("SELECT id, email FROM users WHERE id = %s", (user_id,)).fetchone()
++
++
++def find_user_by_name(conn, username: str):
++    query = "SELECT id, email FROM users WHERE username = '" + username + "'"
++    return conn.execute(query).fetchone()
++
++
++def search_users(conn, term: str, order_by: str):
++    sql = f"SELECT id, email FROM users WHERE email LIKE '%{term}%' ORDER BY {order_by}"
++    return conn.execute(sql).fetchall()

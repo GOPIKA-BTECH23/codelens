@@ -1,0 +1,7 @@
+{
+  "case": "docs_only",
+  "description": "Documentation-only change. Nothing to security-review: the run is skipped (or gets a short note).",
+  "has_code_to_review": false,
+  "expected_findings": [],
+  "optional_findings": []
+}

@@ -1,0 +1,21 @@
+diff --git a/app/session.py b/app/session.py
+new file mode 100644
+index 0000000..3fdd44e
+--- /dev/null
++++ b/app/session.py
+@@ -0,0 +1,15 @@
++"""Session cookies and uploaded settings."""
++
++import base64
++import pickle
++
++import yaml
++from flask import request
++
++
++def load_session(cookie_value: str) -> dict:
++    return pickle.loads(base64.b64decode(cookie_value))
++
++
++def import_settings() -> dict:
++    return yaml.load(request.data, Loader=yaml.Loader)

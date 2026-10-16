@@ -1,0 +1,7 @@
+{
+  "case": "clean_change",
+  "description": "A safe, parameterised query. A good review reports nothing (false-positive check).",
+  "has_code_to_review": true,
+  "expected_findings": [],
+  "optional_findings": []
+}
