@@ -10,6 +10,7 @@ REQUIRED = {
     "JWT_SECRET",
     "GITHUB_OAUTH_CLIENT_ID",
     "GITHUB_OAUTH_CLIENT_SECRET",
+    "GITHUB_WEBHOOK_SECRET",
 }
 
 
@@ -47,7 +48,12 @@ def test_weak_or_placeholder_jwt_secret_is_rejected(secret: str) -> None:
         make_settings(jwt_secret=secret)
 
 
-CREDENTIAL_FIELDS = ["jwt_secret", "github_oauth_client_id", "github_oauth_client_secret"]
+CREDENTIAL_FIELDS = [
+    "jwt_secret",
+    "github_oauth_client_id",
+    "github_oauth_client_secret",
+    "github_webhook_secret",
+]
 # Each bad value embeds this marker, so the test can prove the value is never echoed.
 MARKER = "Zq9SentinelValue4fd0c1b2a3e4f5a6b7c8d9e0"
 
@@ -119,6 +125,7 @@ def test_unset_environment_defaults_to_secure_cookies(monkeypatch: pytest.Monkey
         jwt_secret="x" * 32,
         github_oauth_client_id="id",
         github_oauth_client_secret="secret-value",
+        github_webhook_secret="w" * 32,
     )
     assert s.environment == "production"
     assert s.cookie_secure is True
@@ -127,3 +134,33 @@ def test_unset_environment_defaults_to_secure_cookies(monkeypatch: pytest.Monkey
 def test_oauth_redirect_uri_goes_through_the_web_origin_proxy() -> None:
     s = make_settings(web_origin="https://codelens.example")
     assert s.oauth_redirect_uri == "https://codelens.example/api/auth/github/callback"
+
+
+@pytest.mark.parametrize("secret", ["change-me", "too-short-value"])
+def test_weak_or_placeholder_webhook_secret_is_rejected(secret: str) -> None:
+    with pytest.raises(ValidationError, match="github_webhook_secret"):
+        make_settings(github_webhook_secret=secret)
+
+
+def test_private_key_is_optional_and_empty_means_unset() -> None:
+    assert make_settings().github_app_private_key is None
+    assert make_settings(github_app_private_key="  ").github_app_private_key is None
+
+
+def test_unparseable_private_key_fails_at_startup_without_echoing_it() -> None:
+    with pytest.raises(ValidationError) as exc_info:
+        make_settings(github_app_private_key=f"-----BEGIN RSA PRIVATE KEY-----{MARKER}")
+    assert "github_app_private_key" in str(exc_info.value)
+    assert MARKER not in str(exc_info.value)
+
+
+def test_ignored_pr_authors_parse_from_a_comma_separated_env_var(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("WEBHOOK_IGNORED_PR_AUTHORS", " dependabot[bot], my-bot[bot] ,,")
+    settings = make_settings()
+    assert settings.webhook_ignored_pr_authors == {"dependabot[bot]", "my-bot[bot]"}
+
+
+def test_ignored_pr_authors_default() -> None:
+    assert make_settings().webhook_ignored_pr_authors == {"dependabot[bot]", "renovate[bot]"}

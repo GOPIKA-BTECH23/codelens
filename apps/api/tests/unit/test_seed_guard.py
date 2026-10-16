@@ -36,6 +36,7 @@ def test_environment_defaults_to_production(monkeypatch: pytest.MonkeyPatch) -> 
         jwt_secret="x" * 32,
         github_oauth_client_id="id",
         github_oauth_client_secret="secret-value",
+        github_webhook_secret="w" * 32,
     )
     assert settings.environment == "production"
     with pytest.raises(UnsafeSeedTarget):

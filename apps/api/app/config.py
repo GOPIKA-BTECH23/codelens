@@ -1,10 +1,10 @@
 """Application settings. One class, validated at startup, so a bad config fails fast."""
 
 from functools import lru_cache
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import Field, SecretStr, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 from app.db.constants import EMBEDDING_DIM
 
@@ -56,6 +56,18 @@ class Settings(BaseSettings):
     github_oauth_client_id: str = Field(min_length=1)
     github_oauth_client_secret: SecretStr
 
+    # --- GitHub App (M3) ---
+    # Shared secret GitHub uses to sign every webhook delivery (X-Hub-Signature-256).
+    github_webhook_secret: SecretStr
+    # The App's private key: PEM text, base64-encoded PEM, or a path to the .pem file. Only
+    # the worker uses it (M4 makes it required); when set, it is parsed at startup so a bad
+    # key fails here and not at the first review. The JWT issuer is github_oauth_client_id.
+    github_app_private_key: SecretStr | None = None
+    # PR authors we never review (comma-separated logins in the environment).
+    webhook_ignored_pr_authors: Annotated[frozenset[str], NoDecode] = frozenset(
+        {"dependabot[bot]", "renovate[bot]"}
+    )
+
     # --- Abuse protection (M2) ---
     # Requests per minute per client IP on /auth/*.
     auth_rate_limit_per_minute: int = Field(default=20, ge=1)
@@ -85,7 +97,11 @@ class Settings(BaseSettings):
         return value.rstrip("/")  # origins are compared as exact strings later (CORS, redirects)
 
     @field_validator(
-        "jwt_secret", "github_oauth_client_id", "github_oauth_client_secret", mode="before"
+        "jwt_secret",
+        "github_oauth_client_id",
+        "github_oauth_client_secret",
+        "github_webhook_secret",
+        mode="before",
     )
     @classmethod
     def _no_paste_artifacts(cls, value: object) -> object:
@@ -127,6 +143,42 @@ class Settings(BaseSettings):
     def _client_secret_is_set(cls, value: SecretStr) -> SecretStr:
         if not value.get_secret_value():
             raise ValueError("must be set (GitHub App settings -> Client secrets)")
+        return value
+
+    @field_validator("github_webhook_secret")
+    @classmethod
+    def _webhook_secret_is_strong(cls, value: SecretStr) -> SecretStr:
+        secret = value.get_secret_value()
+        if secret.lower() in _PLACEHOLDER_SECRETS or len(secret) < 16:
+            raise ValueError(
+                "must be at least 16 random characters, the same value as in the GitHub App "
+                "settings (generate one with: openssl rand -hex 32)"
+            )
+        return value
+
+    @field_validator("github_app_private_key", mode="before")
+    @classmethod
+    def _empty_private_key_means_unset(cls, value: object) -> object:
+        # `GITHUB_APP_PRIVATE_KEY=` in .env arrives as "".
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
+
+    @field_validator("github_app_private_key")
+    @classmethod
+    def _private_key_parses(cls, value: SecretStr | None) -> SecretStr | None:
+        if value is not None:
+            # Imported here: config is imported by everything, the key loader needs crypto.
+            from app.services.github_app import load_private_key
+
+            load_private_key(value.get_secret_value())  # raises ValueError, never shows the key
+        return value
+
+    @field_validator("webhook_ignored_pr_authors", mode="before")
+    @classmethod
+    def _split_logins(cls, value: object) -> object:
+        if isinstance(value, str):
+            return frozenset(login.strip() for login in value.split(",") if login.strip())
         return value
 
     @property
