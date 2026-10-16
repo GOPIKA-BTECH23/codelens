@@ -50,3 +50,7 @@ def configure_logging(level: str = "INFO") -> None:
     access = logging.getLogger("uvicorn.access")
     access.handlers.clear()
     access.propagate = False
+    # httpx logs every outbound URL at INFO. We never put secrets in URLs, but a log line
+    # per GitHub call adds nothing and one careless query parameter would leak a credential.
+    for name in ("httpx", "httpcore"):
+        logging.getLogger(name).setLevel(logging.WARNING)

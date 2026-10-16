@@ -3,18 +3,26 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.db.constants import EMBEDDING_DIM
+
+# The browser reaches the API at WEB_ORIGIN + this prefix: the Vite proxy (dev) and the
+# Vercel rewrite (production) strip it before forwarding. Cookie paths and the OAuth
+# callback URL are what the BROWSER sees, so they include it. See ADR 0002.
+PUBLIC_API_PREFIX = "/api"
+
+# Placeholder values from .env.example that must never reach a running server.
+_PLACEHOLDER_SECRETS = frozenset({"change-me", "changeme", "secret"})
 
 
 class Settings(BaseSettings):
     """Environment-driven settings.
 
-    Only variables that M0 actually uses are required. Each later milestone adds its own
-    variables here (and promotes them to required once the feature needs them), so a clean
-    clone can boot before the GitHub App, LLM keys, etc. exist.
+    Each milestone adds its own variables here (and makes them required once a feature
+    needs them), so a clean clone fails at startup with a clear message instead of later
+    at request time.
     """
 
     # Later files win: the repo-root .env (used when running outside Docker) is read after
@@ -22,6 +30,9 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=(".env", "../../.env"),
         extra="ignore",  # .env.example documents variables that later milestones will use
+        # Pydantic normally echoes the rejected value in the error (input_value='...'). For
+        # settings that value is often a secret, and startup errors end up in deploy logs.
+        hide_input_in_errors=True,
     )
 
     # SecretStr keeps the connection string (it contains the password) out of logs and reprs.
@@ -30,10 +41,24 @@ class Settings(BaseSettings):
     api_origin: str = "http://localhost:8000"
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     # Defaults to "production" so a forgotten variable can never unlock dev-only tooling
-    # (the seed script refuses to run unless this is "development").
+    # (the seed script refuses to run unless this is "development") or drop cookie flags.
     environment: Literal["development", "test", "production"] = "production"
     # Not a free setting: it must equal the column size baked into the schema.
     embedding_dim: int = EMBEDDING_DIM
+
+    # --- Sessions (M2) ---
+    # Signs our access JWTs and the OAuth state cookie. Rotating it logs everyone out.
+    jwt_secret: SecretStr
+    jwt_access_ttl_minutes: int = Field(default=15, ge=1, le=60)
+    jwt_refresh_ttl_days: int = Field(default=7, ge=1, le=30)
+
+    # --- GitHub login (M2): the GitHub App's own OAuth client (decision 11) ---
+    github_oauth_client_id: str = Field(min_length=1)
+    github_oauth_client_secret: SecretStr
+
+    # --- Abuse protection (M2) ---
+    # Requests per minute per client IP on /auth/*.
+    auth_rate_limit_per_minute: int = Field(default=20, ge=1)
 
     @field_validator("embedding_dim")
     @classmethod
@@ -58,6 +83,65 @@ class Settings(BaseSettings):
         if not value.startswith(("http://", "https://")):
             raise ValueError("must start with http:// or https://")
         return value.rstrip("/")  # origins are compared as exact strings later (CORS, redirects)
+
+    @field_validator(
+        "jwt_secret", "github_oauth_client_id", "github_oauth_client_secret", mode="before"
+    )
+    @classmethod
+    def _no_paste_artifacts(cls, value: object) -> object:
+        """Catch copy-paste mistakes in credentials at startup instead of at the first login.
+
+        A `<placeholder>` left around a pasted secret, quotes inside the value, or a stray
+        space all produce a credential that looks set but is wrong (GitHub then answers
+        `incorrect_client_credentials`). No exact length or format is enforced: providers
+        change those. The message never includes the value.
+        """
+        text = value.get_secret_value() if isinstance(value, SecretStr) else value
+        if not isinstance(text, str):
+            return value
+        problems = []
+        if text != text.strip():
+            problems.append("leading or trailing whitespace")
+        if "<" in text or ">" in text:
+            problems.append("angle brackets (a leftover <placeholder>?)")
+        if '"' in text or "'" in text:
+            problems.append("quote characters")
+        if problems:
+            raise ValueError(
+                f"contains {' and '.join(problems)}; paste the bare value in .env (value not shown)"
+            )
+        return value
+
+    @field_validator("jwt_secret")
+    @classmethod
+    def _jwt_secret_is_strong(cls, value: SecretStr) -> SecretStr:
+        secret = value.get_secret_value()
+        if secret.lower() in _PLACEHOLDER_SECRETS or len(secret) < 32:
+            raise ValueError(
+                "must be at least 32 random characters (generate one with: openssl rand -hex 32)"
+            )
+        return value
+
+    @field_validator("github_oauth_client_secret")
+    @classmethod
+    def _client_secret_is_set(cls, value: SecretStr) -> SecretStr:
+        if not value.get_secret_value():
+            raise ValueError("must be set (GitHub App settings -> Client secrets)")
+        return value
+
+    @property
+    def cookie_secure(self) -> bool:
+        """Secure cookies everywhere except local http development and tests.
+
+        Keyed on "not development/test" rather than "is production", so an unset or
+        mistyped ENVIRONMENT (which defaults to production) keeps the flag on.
+        """
+        return self.environment not in ("development", "test")
+
+    @property
+    def oauth_redirect_uri(self) -> str:
+        """The callback URL GitHub sends the browser back to. Must match the GitHub App."""
+        return f"{self.web_origin}{PUBLIC_API_PREFIX}/auth/github/callback"
 
 
 @lru_cache

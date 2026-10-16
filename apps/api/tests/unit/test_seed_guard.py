@@ -2,14 +2,12 @@ import pytest
 
 from app.config import Settings
 from scripts.seed import UnsafeSeedTarget, assert_safe_target
+from tests.app_utils import make_settings
 
 
 def _settings(environment: str, host: str) -> Settings:
-    return Settings(
-        _env_file=None,
-        database_url=f"postgresql+asyncpg://u:p@{host}:5432/codelens",
-        web_origin="http://localhost:5173",
-        environment=environment,  # type: ignore[arg-type]
+    return make_settings(
+        database_url=f"postgresql+asyncpg://u:p@{host}:5432/codelens", environment=environment
     )
 
 
@@ -29,5 +27,16 @@ def test_remote_host_is_refused_even_in_development() -> None:
         assert_safe_target(_settings("development", "db.abcd.supabase.co"))
 
 
-def test_environment_defaults_to_production(settings: Settings) -> None:
+def test_environment_defaults_to_production(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("ENVIRONMENT", raising=False)
+    settings = Settings(  # no `environment` argument on purpose
+        _env_file=None,
+        database_url="postgresql+asyncpg://u:p@localhost:5432/codelens",
+        web_origin="http://localhost:5173",
+        jwt_secret="x" * 32,
+        github_oauth_client_id="id",
+        github_oauth_client_secret="secret-value",
+    )
     assert settings.environment == "production"
+    with pytest.raises(UnsafeSeedTarget):
+        assert_safe_target(settings)

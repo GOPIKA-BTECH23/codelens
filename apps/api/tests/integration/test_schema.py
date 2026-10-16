@@ -17,6 +17,7 @@ from app.db.models import (
     InstallationMember,
     PullRequest,
     Repository,
+    RepositoryAccess,
     ReviewRun,
     User,
     WebhookDelivery,
@@ -95,6 +96,37 @@ async def test_installation_member_pair_is_unique(session: AsyncSession) -> None
     session.add(InstallationMember(installation_id=inst.id, user_id=user.id, role="member"))
     with pytest.raises(IntegrityError, match="uq_installation_members_pair"):
         await session.commit()
+
+
+async def test_repository_access_pair_is_unique(session: AsyncSession) -> None:
+    user, inst = _user(), _installation()
+    session.add_all([user, inst])
+    await session.flush()
+    repo = _repo(inst)
+    session.add(repo)
+    await session.flush()
+    session.add(RepositoryAccess(user_id=user.id, repository_id=repo.id))
+    await session.commit()
+
+    session.add(RepositoryAccess(user_id=user.id, repository_id=repo.id))
+    with pytest.raises(IntegrityError, match="uq_repository_access_pair"):
+        await session.commit()
+
+
+async def test_deleting_a_repository_removes_its_access_rows(session: AsyncSession) -> None:
+    user, inst = _user(), _installation()
+    session.add_all([user, inst])
+    await session.flush()
+    repo = _repo(inst)
+    session.add(repo)
+    await session.flush()
+    session.add(RepositoryAccess(user_id=user.id, repository_id=repo.id))
+    await session.commit()
+
+    await session.delete(repo)
+    await session.commit()
+
+    assert (await session.scalars(select(RepositoryAccess))).all() == []
 
 
 async def test_github_ids_are_unique(session: AsyncSession) -> None:

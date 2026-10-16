@@ -199,7 +199,8 @@ class PostgresJobQueue:
 
     def _backoff(self, attempts: int) -> timedelta:
         """base * 2^(attempts-1): 30s, 60s, 120s, ... capped at backoff_max."""
-        return min(self._backoff_base * 2 ** (attempts - 1), self._backoff_max)
+        delay: timedelta = self._backoff_base * 2 ** (attempts - 1)
+        return min(delay, self._backoff_max)
 
     @staticmethod
     def _owned(job: Job) -> Any:
