@@ -66,6 +66,7 @@ class DropCounts:
     evidence_mismatch: int = 0
     duplicate: int = 0
     low_confidence: int = 0
+    below_severity: int = 0  # under the repository's severity threshold (M6 settings)
     over_cap: int = 0
 
     @property
@@ -127,7 +128,12 @@ def validate_findings(
 
 
 def select_findings(
-    findings: Iterable[Finding], *, threshold: float, max_comments: int, counts: DropCounts
+    findings: Iterable[Finding],
+    *,
+    threshold: float,
+    max_comments: int,
+    counts: DropCounts,
+    min_severity: Severity = Severity.INFO,
 ) -> list[Finding]:
     best: dict[tuple[str, int, str], Finding] = {}
     for finding in findings:
@@ -139,6 +145,9 @@ def select_findings(
         best[key] = finding
     confident = [f for f in best.values() if f.confidence >= threshold]
     counts.low_confidence += len(best) - len(confident)
+    severe = [f for f in confident if SEVERITY_RANK[f.severity] >= SEVERITY_RANK[min_severity]]
+    counts.below_severity += len(confident) - len(severe)
+    confident = severe
     ranked = sorted(
         confident,
         key=lambda f: (-SEVERITY_RANK[f.severity], -f.confidence, f.file, f.line),
@@ -208,13 +217,8 @@ def _severity_line(findings: Sequence[Finding]) -> str:
     return f"{len(findings)} inline {noun}: {', '.join(parts)}."
 
 
-def render_summary(run_id: uuid.UUID, findings: Sequence[Finding], s: ReviewSummary) -> str:
-    lines = [run_marker(run_id), "## CodeLens security review", ""]
-    if s.change_summaries:
-        what = defuse(" ".join(s.change_summaries), _MAX_SUMMARY_CHARS)
-        lines += [f"**What changed:** {what}", ""]
-    lines += [f"**Findings:** {_severity_line(findings)}", ""]
-
+def summary_notes(s: ReviewSummary) -> list[str]:
+    """The "Review notes" bullets: what was reviewed, what was dropped and why."""
     notes = [f"Reviewed {s.files_reviewed} file(s) in {s.chunks_total} part(s)."]
     if s.chunks_failed:
         notes.append(
@@ -229,6 +233,10 @@ def render_summary(run_id: uuid.UUID, findings: Sequence[Finding], s: ReviewSumm
         )
     if c.low_confidence:
         notes.append(f"{c.low_confidence} lower-confidence finding(s) are not shown.")
+    if c.below_severity:
+        notes.append(
+            f"{c.below_severity} finding(s) are below this repository's severity threshold."
+        )
     if c.over_cap:
         notes.append(f"{c.over_cap} more finding(s) are not shown (comment limit reached).")
     if s.doc_files:
@@ -239,6 +247,24 @@ def render_summary(run_id: uuid.UUID, findings: Sequence[Finding], s: ReviewSumm
         )
         more = len(s.skipped) - _MAX_SKIPPED_LISTED
         notes.append(f"Skipped: {listed}" + (f" and {more} more." if more > 0 else "."))
+    return notes
+
+
+def stored_summary(s: ReviewSummary) -> dict[str, object]:
+    """What the dashboard shows above the diff (review_runs.summary). Plain text, no markdown:
+    the web app renders it as text."""
+    what = defuse(" ".join(s.change_summaries), _MAX_SUMMARY_CHARS) if s.change_summaries else None
+    return {"what_changed": what, "notes": summary_notes(s)}
+
+
+def render_summary(run_id: uuid.UUID, findings: Sequence[Finding], s: ReviewSummary) -> str:
+    lines = [run_marker(run_id), "## CodeLens security review", ""]
+    if s.change_summaries:
+        what = defuse(" ".join(s.change_summaries), _MAX_SUMMARY_CHARS)
+        lines += [f"**What changed:** {what}", ""]
+    lines += [f"**Findings:** {_severity_line(findings)}", ""]
+
+    notes = summary_notes(s)
     lines += ["<details><summary>Review notes</summary>", ""]
     lines += [f"- {note}" for note in notes]
     lines += ["", "</details>", ""]

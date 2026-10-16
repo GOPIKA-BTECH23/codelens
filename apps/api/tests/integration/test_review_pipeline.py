@@ -20,11 +20,11 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.ai.llm.base import LLMRateLimited, Message, StructuredResult
 from app.ai.llm.fake import FakeLLM
-from app.ai.schemas import AgentOutput, Finding
+from app.ai.schemas import AgentOutput, Finding, Severity
 from app.db.models.accounts import Installation
 from app.db.models.enums import JobStatus, RunStatus
 from app.db.models.repos import Finding as FindingRow
-from app.db.models.repos import PullRequest, Repository, ReviewRun
+from app.db.models.repos import PullRequest, Repository, ReviewRun, ReviewRunFile
 from app.services import runs
 from app.services.github_app import GitHubApp
 from app.services.jobs import PostgresJobQueue
@@ -83,14 +83,16 @@ def pipeline(
     )
 
 
-async def make_run(factory: Factory) -> uuid.UUID:
+async def make_run(factory: Factory, settings: dict[str, Any] | None = None) -> uuid.UUID:
     async with factory.begin() as session:
         inst = Installation(
             github_installation_id=INSTALLATION, account_login="demo-owner", account_type="user"
         )
         session.add(inst)
         await session.flush()
-        repo = Repository(installation_id=inst.id, github_repo_id=2002, full_name=REPO)
+        repo = Repository(
+            installation_id=inst.id, github_repo_id=2002, full_name=REPO, settings=settings or {}
+        )
         session.add(repo)
         await session.flush()
         pr = PullRequest(repository_id=repo.id, number=PR_NUMBER, title="t", author_login="a")
@@ -110,9 +112,10 @@ async def review(
     head_sha: str = HEAD,
     expect: JobStatus = JobStatus.SUCCEEDED,
     max_attempts: int = 5,
+    settings: dict[str, Any] | None = None,
 ) -> uuid.UUID:
     """Create a run, enqueue its job, run the worker until the job reaches `expect`."""
-    run_id = await make_run(factory)
+    run_id = await make_run(factory, settings)
     job_id = await enqueue(
         queue,
         factory,
@@ -193,6 +196,20 @@ async def test_seeded_vulnerable_pr_gets_one_review_with_comments_on_the_right_l
     )
     assert all(r.message and r.confidence == 0.9 for r in rows)
     assert github.token_requests == 1  # one installation token, cached for the whole review
+
+    # M6: the dashboard's summary and the reviewed files' patches are stored with the run.
+    assert run.summary is not None
+    assert (
+        run.summary["what_changed"]
+        == "Adds config, queries, sessions, downloads and image helpers."
+    )
+    assert any("Reviewed" in n for n in run.summary["notes"])
+    async with session_factory() as s:
+        stored = (
+            await s.scalars(select(ReviewRunFile).where(ReviewRunFile.review_run_id == run_id))
+        ).all()
+    assert {f.path for f in stored} == {f.file for f in expected}
+    assert all(f.patch and f.patch.startswith("@@ ") for f in stored)
 
 
 async def test_clean_change_posts_a_no_issues_summary(
@@ -409,3 +426,71 @@ async def test_job_attempts_are_not_wasted_on_permanent_errors(
     ):
         await wait_for(job_is(session_factory, job_id, JobStatus.DEAD))
     assert (await job_row(session_factory, job_id)).attempts == 1
+
+
+# --- per-repository settings (M6) ----------------------------------------------------------------
+
+
+async def test_severity_threshold_setting_hides_lower_findings_and_says_so(
+    session_factory: Factory,
+    queue: PostgresJobQueue,
+    github: FakeGitHubApp,
+    http: httpx.AsyncClient,
+) -> None:
+    pr = github.add(seeded_pr("sql_injection"))
+    expected = ideal("sql_injection")
+    low = expected[0].model_copy(
+        update={"severity": Severity.LOW, "category": "weak-hash", "line": expected[0].line}
+    )
+    llm = FakeLLM([AgentOutput(change_summary="x", findings=[*expected, low])])
+    run_id = await review(
+        session_factory,
+        queue,
+        pipeline(session_factory, llm, http),
+        settings={"severity_threshold": "high"},
+    )
+    posted = pr.posted[0]
+    assert {c["path"] for c in posted["comments"]} == {f.file for f in expected}
+    assert len(posted["comments"]) == len(expected)  # the low one is gone
+    assert "below this repository's severity threshold" in posted["body"]
+    rows = await finding_rows(session_factory, run_id)
+    assert all(r.severity in ("high", "critical") for r in rows)
+
+
+async def test_ignore_paths_setting_removes_files_from_the_review(
+    session_factory: Factory,
+    queue: PostgresJobQueue,
+    github: FakeGitHubApp,
+    http: httpx.AsyncClient,
+) -> None:
+    case = load_case("sql_injection")
+    pr = github.add(seeded_pr("sql_injection"))
+    llm = FakeLLM()
+    run_id = await review(
+        session_factory,
+        queue,
+        pipeline(session_factory, llm, http),
+        settings={"ignore_paths": [f.path for f in case.files]},
+    )
+    run = await get_run(session_factory, run_id)
+    assert run.status == RunStatus.SKIPPED and "no code changes" in (run.error or "")
+    assert llm.calls == [] and pr.posted == []
+
+
+async def test_disabled_security_agent_skips_the_run_before_any_work(
+    session_factory: Factory,
+    queue: PostgresJobQueue,
+    github: FakeGitHubApp,
+    http: httpx.AsyncClient,
+) -> None:
+    pr = github.add(seeded_pr("sql_injection"))
+    llm = FakeLLM()
+    run_id = await review(
+        session_factory,
+        queue,
+        pipeline(session_factory, llm, http),
+        settings={"enabled_agents": []},
+    )
+    run = await get_run(session_factory, run_id)
+    assert run.status == RunStatus.SKIPPED and "disabled" in (run.error or "")
+    assert llm.calls == [] and pr.posted == [] and github.token_requests == 0

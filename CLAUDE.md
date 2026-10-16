@@ -108,7 +108,7 @@ codelens/
 
 **Authorization uses two levels:** installation membership gives the role, and `repository_access` decides which repos of that installation a user may see. Every repo-scoped endpoint checks both.
 
-**Data retention on uninstall** (`installation.deleted`): set `installations.uninstalled_at` (the installation, repository and review rows are KEPT; foreign-key `ON DELETE CASCADE` exists for hard deletes only and is never triggered by an uninstall), stop the installation's jobs, then immediately hard-delete its `code_chunks`, `chat_sessions` and `chat_messages`. The purge job deletes only `code_chunks` and chat data. Keep review metadata (`pull_requests`, `review_runs`, finding file/line/severity/category/confidence/feedback). 30 days after uninstall, purge finding text that can contain code (`findings.message` and `findings.suggestion` set to NULL).
+**Data retention on uninstall** (`installation.deleted`): set `installations.uninstalled_at` (the installation, repository and review rows are KEPT; foreign-key `ON DELETE CASCADE` exists for hard deletes only and is never triggered by an uninstall), stop the installation's jobs, then immediately hard-delete its `code_chunks`, `chat_sessions` and `chat_messages`. The purge job deletes only `code_chunks`, chat data and stored review patches (`review_run_files.patch`, set NULL; ADR 0006). Keep review metadata (`pull_requests`, `review_runs`, finding file/line/severity/category/confidence/feedback). Stored patches are also purged 30 days after their PR is closed or merged (ADR 0006; the purge job comes later). 30 days after uninstall, purge finding text that can contain code (`findings.message` and `findings.suggestion` set to NULL).
 
 **Schema growth:** columns that later milestones need (for example `repositories.settings`, `review_runs.head_sha`, `findings.dismissed`, `code_chunks.symbol` / `content_hash`, per-agent usage) are added by that milestone's own migration, not up front.
 
@@ -172,6 +172,7 @@ Required from M2: `JWT_SECRET` (32+ characters, placeholders rejected), `GITHUB_
 - Web E2E (from M12): `npx playwright test`
 - Seeded vulnerable PRs (tests now, evals in M13): `evals/dataset/seeded_prs/` (`<case>.diff` + `<case>.expected.json`). Prompts are versioned files in `apps/api/app/ai/prompts/` (`security_v1.md`); change behaviour by adding a new version, never by editing one that runs have recorded.
 - Workflow lint: `docker run --rm -v "$(pwd):/repo" -w /repo rhysd/actionlint:latest`
+- Dashboard API types (M6): the Pydantic models are the source of truth. After changing a response/request model: `cd apps/api && uv run python -m scripts.dump_openapi && cd ../web && npm run gen:api-types`. Commit `apps/web/src/api/openapi.json` and `schema.ts`; a pytest test and CI fail when they are stale. API docs while the API runs: `http://localhost:8000/docs`.
 - Webhook tunnel for local GitHub testing: `ngrok http 8000`, then set the App's Webhook URL to `https://<ngrok-dev-domain>/webhooks/github`. Not smee: it re-serialises the body and can break the signature (ADR 0003).
 - Replay a signed webhook payload to the local API: `cd apps/api && uv run python -m scripts.replay_webhook tests/fixtures/webhooks/pull_request.opened.json` (`--delivery-id X` twice tests duplicates, `--bad-signature` expects 401; reads `GITHUB_WEBHOOK_SECRET` from `.env`)
 
@@ -218,3 +219,4 @@ Kickoff decisions, 2026-10-15. "Accepted" means the proposed default stands. Fre
 20. **Node version:** current Node LTS (22+); Python stays 3.12 for wheel support. Accepted.
 21. **Windows dev:** `.gitattributes` with `eol=lf`; analyzers run only in Docker; helper scripts in Python, not bash. Accepted.
 22. **Misc:** rate limiter stored in Postgres behind an interface; mypy strict on `core/`, `services/`, `ai/`; tests use a separate `codelens_test` DB with per-test rollback. Accepted.
+23. **Stored review patches (M6):** the worker stores the review summary and the reviewed files' patches (`review_run_files`) so the dashboard can render diffs without GitHub. They are source code: purged on uninstall and 30 days after the PR is closed or merged (purge job later); ADR 0006. API values stay `helpful`/`not_helpful`; the UI says Useful / Not useful.

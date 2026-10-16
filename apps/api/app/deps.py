@@ -18,7 +18,7 @@ from app.config import Settings
 from app.core.errors import ForbiddenError, NotFoundError, RateLimitedError, UnauthorizedError
 from app.core.rate_limit import RateLimiter
 from app.core.security import ACCESS_COOKIE, decode_access_token
-from app.db.models import Repository, User
+from app.db.models import Finding, Repository, User
 from app.db.models.enums import MemberRole
 from app.db.session import get_session
 from app.services import rbac
@@ -94,15 +94,58 @@ def require_installation_role(
     return guard
 
 
+async def _repository_access(
+    db: AsyncSession, user: User, repository_id: uuid.UUID
+) -> rbac.RepositoryAccessInfo:
+    access = await rbac.get_repository_access(db, user.id, repository_id)
+    if access is None:
+        raise NotFoundError("Repository not found")  # same answer for "missing" and "not yours"
+    return access
+
+
 async def require_repository_access(
     repository_id: uuid.UUID, user: CurrentUserDep, db: SessionDep
 ) -> Repository:
     """The route's `repository_id` must be a repo the user may see (both levels). 404
-    otherwise. Every repo-scoped endpoint (from M6) declares this."""
-    repository = await rbac.get_accessible_repository(db, user.id, repository_id)
-    if repository is None:
-        raise NotFoundError("Repository not found")
-    return repository
+    otherwise. Every repo-scoped endpoint declares this (or one of the guards below)."""
+    return (await _repository_access(db, user, repository_id)).repository
+
+
+def require_repository_role(
+    min_role: MemberRole,
+) -> Callable[..., Awaitable[rbac.RepositoryAccessInfo]]:
+    """Like require_installation_role, for `repository_id` routes: visible repo (404
+    otherwise) AND at least `min_role` in its installation (403 otherwise)."""
+
+    async def guard(
+        repository_id: uuid.UUID, user: CurrentUserDep, db: SessionDep
+    ) -> rbac.RepositoryAccessInfo:
+        access = await _repository_access(db, user, repository_id)
+        if not rbac.role_at_least(access.role, min_role):
+            raise ForbiddenError(f"Requires the {min_role.value} role or higher")
+        return access
+
+    return guard
+
+
+async def require_pull_access(
+    pull_id: uuid.UUID, user: CurrentUserDep, db: SessionDep
+) -> rbac.PullAccess:
+    """The route's `pull_id` must be a PR in a repo the user may see. 404 otherwise."""
+    found = await rbac.get_pull_access(db, user.id, pull_id)
+    if found is None:
+        raise NotFoundError("Pull request not found")
+    return found
+
+
+async def require_finding_access(
+    finding_id: uuid.UUID, user: CurrentUserDep, db: SessionDep
+) -> Finding:
+    """The route's `finding_id` must belong to a PR in a repo the user may see. 404 otherwise."""
+    found = await rbac.get_finding_access(db, user.id, finding_id)
+    if found is None:
+        raise NotFoundError("Finding not found")
+    return found[0]
 
 
 # --- outbound GitHub and rate limiting -----------------------------------------------------

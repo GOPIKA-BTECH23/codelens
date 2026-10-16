@@ -15,7 +15,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import __version__
-from app.api import auth, health, installations, me, webhooks
+from app.api import analytics, auth, findings, health, installations, me, pulls, repos, webhooks
 from app.config import Settings, get_settings
 from app.core.csrf import CSRF_HEADER, CsrfMiddleware
 from app.core.errors import register_error_handlers
@@ -99,6 +99,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(auth.router)
     app.include_router(me.router)
     app.include_router(installations.router)
+    app.include_router(repos.router)
+    app.include_router(pulls.router)
+    app.include_router(findings.router)
+    app.include_router(analytics.router)
     app.include_router(webhooks.router)
 
     logging.getLogger("app").info("api started", extra={"version": __version__})

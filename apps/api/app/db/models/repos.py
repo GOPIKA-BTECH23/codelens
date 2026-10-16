@@ -3,6 +3,7 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import (
     BigInteger,
@@ -19,6 +20,7 @@ from sqlalchemy import (
     Uuid,
     text,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, CreatedAtMixin, TimestampMixin, UuidPkMixin, check_in
@@ -50,6 +52,10 @@ class Repository(UuidPkMixin, TimestampMixin, Base):
         String(20), server_default=IndexStatus.NOT_INDEXED.value
     )
     last_indexed_sha: Mapped[str | None] = mapped_column(String(40))
+    # M6: per-repo review settings (validated by app.services.repos.RepoSettings). Empty = defaults.
+    settings: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, server_default=text("'{}'::jsonb"), nullable=False
+    )
 
     __table_args__ = (
         check_in("index_status", IndexStatus),
@@ -114,6 +120,8 @@ class ReviewRun(UuidPkMixin, TimestampMixin, Base):
     # id of the review we posted on GitHub (NULL until posted).
     head_sha: Mapped[str | None] = mapped_column(String(40))
     github_review_id: Mapped[int | None] = mapped_column(BigInteger)
+    # M6: what the dashboard shows above the diff: {"what_changed": str | None, "notes": [str]}.
+    summary: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
@@ -142,9 +150,34 @@ class Finding(UuidPkMixin, TimestampMixin, Base):
     suggestion: Mapped[str | None] = mapped_column(Text)
     confidence: Mapped[float] = mapped_column(Float)
     user_feedback: Mapped[str | None] = mapped_column(String(20))
+    dismissed: Mapped[bool] = mapped_column(Boolean, server_default=text("false"), nullable=False)
 
     __table_args__ = (
         check_in("severity", Severity),
         check_in("user_feedback", FindingFeedback),
         Index("ix_findings_review_run_id", "review_run_id"),
+    )
+
+
+class ReviewRunFile(UuidPkMixin, CreatedAtMixin, Base):
+    """One reviewed file of a run, with its diff patch, so the dashboard can render the diff
+    without calling GitHub. The patch is source code: it is purged with code_chunks on
+    uninstall and 30 days after the PR is closed or merged (docs/adr/0006)."""
+
+    __tablename__ = "review_run_files"
+
+    review_run_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("review_runs.id", ondelete="CASCADE")
+    )
+    path: Mapped[str] = mapped_column(String(1000))
+    old_path: Mapped[str | None] = mapped_column(String(1000))
+    status: Mapped[str] = mapped_column(String(20))
+    additions: Mapped[int] = mapped_column(Integer, server_default=text("0"))
+    deletions: Mapped[int] = mapped_column(Integer, server_default=text("0"))
+    # NULL once purged (or when GitHub sent no patch).
+    patch: Mapped[str | None] = mapped_column(Text)
+
+    __table_args__ = (
+        UniqueConstraint("review_run_id", "path", name="uq_review_run_files_run_path"),
+        Index("ix_review_run_files_review_run_id", "review_run_id"),
     )

@@ -49,6 +49,7 @@ from app.services.github_client import (
     ReviewRequest,
     installation_client,
 )
+from app.services.repos import effective_settings
 from app.worker.errors import PermanentJobError
 
 logger = logging.getLogger("app.worker.review")
@@ -107,6 +108,10 @@ class GitHubReviewPipeline:
             target = await runs.load_review_target(session, run_id)
         if target is None:
             raise PermanentJobError(f"review run {run_id} does not exist")
+        settings = effective_settings(target.settings)
+        if "security" not in settings.enabled_agents:
+            await self._skip(run_id, "the security agent is disabled for this repository")
+            return
         gh = self._client_for(target.github_installation_id)
         repo, number = target.repo_full_name, target.pr_number
 
@@ -132,7 +137,7 @@ class GitHubReviewPipeline:
         files = from_pr_files(await gh.list_pull_request_files(repo, number))
         filtered = filter_files(
             files,
-            extra_patterns=self._config.ignore_patterns,
+            extra_patterns=(*self._config.ignore_patterns, *settings.ignore_paths),
             max_changed_lines=self._config.max_file_changed_lines,
         )
         summary = review_poster.ReviewSummary(
@@ -175,6 +180,7 @@ class GitHubReviewPipeline:
             threshold=self._config.confidence_threshold,
             max_comments=self._config.max_comments,
             counts=counts,
+            min_severity=settings.severity_threshold,
         )
         summary.chunks_total = result.chunks_total
         summary.chunks_failed = result.chunks_failed
@@ -196,7 +202,14 @@ class GitHubReviewPipeline:
 
         # 6. Save what we are about to post.
         async with self._session_factory.begin() as session:
-            await runs.replace_findings(session, run_id, head, selected)
+            await runs.replace_findings(
+                session,
+                run_id,
+                head,
+                selected,
+                summary=review_poster.stored_summary(summary),
+                files=filtered.code_files,
+            )
 
         # 7 + 8. Post, unless a newer push superseded us meanwhile.
         review = review_poster.build_review(run_id, head, selected, summary)
@@ -219,7 +232,9 @@ class GitHubReviewPipeline:
             await self._skip(run_id, reason)
             return
         async with self._session_factory.begin() as session:
-            await runs.replace_findings(session, run_id, head, [])
+            await runs.replace_findings(
+                session, run_id, head, [], summary=review_poster.stored_summary(summary)
+            )
         review = review_poster.build_review(run_id, head, [], summary)
         await self._post_and_succeed(run_id, gh, repo, number, review, started)
 

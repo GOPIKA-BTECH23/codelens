@@ -475,6 +475,14 @@ def filter_files(
 # --- rendering and chunking --------------------------------------------------------------------
 
 
+def render_patch(file: FileDiff) -> str:
+    """The file's hunks as a GitHub-style `patch` (headers and lines, no file header).
+    Stored for the dashboard; parse_hunks reads it back."""
+    return "\n".join(
+        line for h in file.hunks for line in [h.header, *(f"{ln.kind}{ln.text}" for ln in h.lines)]
+    )
+
+
 def render_file(file: FileDiff) -> str:
     """The text the model sees for one file. The left column is the NEW-file line number:
     the only numbers a finding may cite. Removed lines get no number."""

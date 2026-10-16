@@ -52,6 +52,15 @@ jobs:
       - run: uv run ruff format --check .
       - run: uv run mypy
       - run: uv run pytest
+      # The web app's types are generated from this snapshot of the API schema. If a Pydantic
+      # model changed and nobody re-ran the dump, the frontend would silently use stale types.
+      - name: OpenAPI snapshot is up to date
+        run: |
+          uv run python -m scripts.dump_openapi
+          git diff --exit-code -- ../web/src/api/openapi.json || {
+            echo "::error::apps/web/src/api/openapi.json is stale. Run: cd apps/api && uv run python -m scripts.dump_openapi && cd ../web && npm run gen:api-types"
+            exit 1
+          }
 
   web:
     name: Web (lint + typecheck + tests + build)
@@ -67,6 +76,13 @@ jobs:
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
       - run: npm ci
+      - name: Generated API types are up to date
+        run: |
+          npm run gen:api-types
+          git diff --exit-code -- src/api/schema.ts || {
+            echo "::error::apps/web/src/api/schema.ts is stale. Run: npm run gen:api-types"
+            exit 1
+          }
       - run: npm run lint
       - run: npm run format:check
       - run: npm run typecheck

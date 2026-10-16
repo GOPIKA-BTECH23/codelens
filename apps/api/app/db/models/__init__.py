@@ -8,7 +8,14 @@ from app.db.models.accounts import (
     User,
 )
 from app.db.models.code import ChatMessage, ChatSession, CodeChunk, Job, WebhookDelivery
-from app.db.models.repos import Finding, PullRequest, Repository, RepositoryAccess, ReviewRun
+from app.db.models.repos import (
+    Finding,
+    PullRequest,
+    Repository,
+    RepositoryAccess,
+    ReviewRun,
+    ReviewRunFile,
+)
 
 __all__ = [
     "ChatMessage",
@@ -24,6 +31,7 @@ __all__ = [
     "Repository",
     "RepositoryAccess",
     "ReviewRun",
+    "ReviewRunFile",
     "User",
     "WebhookDelivery",
 ]

@@ -5,6 +5,8 @@ import { MemoryRouter } from 'react-router'
 import { describe, expect, it } from 'vitest'
 import { App } from './App'
 import { AuthProvider } from './auth/AuthProvider'
+import { ToastProvider } from './components/ToastProvider'
+import { ThemeProvider } from './theme/ThemeProvider'
 import { callsTo, json, mockApi } from './test/fetchMock'
 
 const ME = {
@@ -19,6 +21,8 @@ const ME = {
     },
   ],
 }
+const NO_REPOS = () => json(200, { items: [], total: 0, limit: 20, offset: 0 })
+const REPOS_URL = 'GET /api/repos?limit=20&offset=0'
 const UNAUTHORIZED = () =>
   json(401, { error: { code: 'unauthorized', message: 'Authentication required' } })
 
@@ -27,9 +31,13 @@ function renderApp(path: string) {
   return render(
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[path]}>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
+        <ThemeProvider>
+          <ToastProvider>
+            <AuthProvider>
+              <App />
+            </AuthProvider>
+          </ToastProvider>
+        </ThemeProvider>
       </MemoryRouter>
     </QueryClientProvider>,
   )
@@ -47,7 +55,7 @@ describe('auth flow in the UI', () => {
   })
 
   it('shows the signed-in user from /me on the dashboard', async () => {
-    mockApi({ 'GET /api/me': () => json(200, ME) })
+    mockApi({ 'GET /api/me': () => json(200, ME), [REPOS_URL]: NO_REPOS })
 
     renderApp('/dashboard')
 
@@ -60,6 +68,7 @@ describe('auth flow in the UI', () => {
     const fetchSpy = mockApi({
       'GET /api/me': [UNAUTHORIZED, () => json(200, ME)],
       'POST /api/auth/refresh': () => json(204),
+      [REPOS_URL]: NO_REPOS,
     })
 
     renderApp('/dashboard')
@@ -72,6 +81,7 @@ describe('auth flow in the UI', () => {
     const fetchSpy = mockApi({
       'GET /api/me': () => json(200, ME),
       'POST /api/auth/logout': () => json(204),
+      [REPOS_URL]: NO_REPOS,
     })
     renderApp('/dashboard')
 
