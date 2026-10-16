@@ -1,4 +1,20 @@
-import type { ApiErrorBody, HealthResponse, MeResponse } from './types'
+import type {
+  ApiErrorBody,
+  FindingOut,
+  FindingUpdate,
+  HealthResponse,
+  IndexRequested,
+  MeResponse,
+  Page,
+  PullOut,
+  PullRequestState,
+  RepoDetail,
+  RepoOut,
+  RepoSettings,
+  RepoSettingsUpdate,
+  ReviewOut,
+  UsageOut,
+} from './types'
 
 // All API calls go to the same origin under /api. Vite proxies it in dev; in production a
 // Vercel rewrite does the same (docs/adr/0002-cookie-and-csrf-strategy.md). Same origin is
@@ -94,8 +110,49 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 /** Full-page navigation target that starts the GitHub login (not a fetch). */
 export const GITHUB_LOGIN_URL = `${API_BASE}/auth/github/login`
 
+/** Build "?a=1&b=2" from the defined values only. */
+function query(params: object): string {
+  const search = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== '') search.set(key, String(value))
+  }
+  const text = search.toString()
+  return text ? `?${text}` : ''
+}
+
+const JSON_HEADERS = { 'Content-Type': 'application/json' }
+
+function sendJson<T>(method: 'POST' | 'PATCH', path: string, body?: unknown): Promise<T> {
+  return request<T>(path, {
+    method,
+    headers: JSON_HEADERS,
+    body: body === undefined ? undefined : JSON.stringify(body),
+  })
+}
+
+export interface PageArgs {
+  limit?: number
+  offset?: number
+}
+
 export const api = {
   health: () => request<HealthResponse>('/health'),
   me: () => request<MeResponse>('/me'),
   logout: () => request<void>('/auth/logout', { method: 'POST' }),
+
+  repos: (args: PageArgs & { q?: string } = {}) => request<Page<RepoOut>>(`/repos${query(args)}`),
+  repo: (id: string) => request<RepoDetail>(`/repos/${id}`),
+  requestIndex: (id: string) => sendJson<IndexRequested>('POST', `/repos/${id}/index`),
+  updateSettings: (id: string, change: RepoSettingsUpdate) =>
+    sendJson<RepoSettings>('PATCH', `/repos/${id}/settings`, change),
+  pulls: (repoId: string, args: PageArgs & { state?: PullRequestState } = {}) =>
+    request<Page<PullOut>>(`/repos/${repoId}/pulls${query(args)}`),
+
+  pull: (id: string) => request<PullOut>(`/pulls/${id}`),
+  review: (pullId: string) => request<ReviewOut | null>(`/pulls/${pullId}/review`),
+  updateFinding: (id: string, change: FindingUpdate) =>
+    sendJson<FindingOut>('PATCH', `/findings/${id}`, change),
+
+  usage: (args: { from?: string; to?: string } = {}) =>
+    request<UsageOut>(`/analytics/usage${query(args)}`),
 }

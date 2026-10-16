@@ -1,1 +1,21 @@
 @import 'tailwindcss';
+
+/* Dark mode is a class on <html> (set by ThemeProvider), not the OS media query, so the user
+   can override the system setting with the toggle. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  html {
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100;
+  }
+  /* A visible focus ring for keyboard users on everything interactive. */
+  :where(a, button, input, select, textarea, summary):focus-visible {
+    @apply outline-2 outline-offset-2 outline-blue-600 dark:outline-blue-400;
+  }
+}
