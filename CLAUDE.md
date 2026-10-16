@@ -148,9 +148,9 @@ All schema changes go through Alembic migrations. Never edit the DB by hand.
 
 ## 11. Environment variables (document all in `.env.example`)
 
-`DATABASE_URL`, `JWT_SECRET`, `JWT_ACCESS_TTL_MINUTES`, `JWT_REFRESH_TTL_DAYS`, `WEB_ORIGIN`, `API_ORIGIN`, `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY` (PEM, base64 or path), `GITHUB_WEBHOOK_SECRET`, `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET`, `LLM_PROVIDER`, `EMBEDDING_PROVIDER` (gemini/fake), `GEMINI_API_KEY`, `GROQ_API_KEY`, `EMBEDDING_MODEL`, `EMBEDDING_DIM`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST`, `SENTRY_DSN`, `RUN_WORKER_IN_API` (true/false), `DAILY_COST_CAP_USD`, `LOG_LEVEL`, `ENVIRONMENT` (development/test/production; defaults to production; the seed script needs development; cookies are `Secure` unless development/test), `AUTH_RATE_LIMIT_PER_MINUTE` (optional, default 20).
+`DATABASE_URL`, `JWT_SECRET`, `JWT_ACCESS_TTL_MINUTES`, `JWT_REFRESH_TTL_DAYS`, `WEB_ORIGIN`, `API_ORIGIN`, `GITHUB_APP_PRIVATE_KEY` (PEM, base64 or path), `GITHUB_WEBHOOK_SECRET`, `WEBHOOK_IGNORED_PR_AUTHORS` (optional, comma-separated, default `dependabot[bot],renovate[bot]`), `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET`, `LLM_PROVIDER`, `EMBEDDING_PROVIDER` (gemini/fake), `GEMINI_API_KEY`, `GROQ_API_KEY`, `EMBEDDING_MODEL`, `EMBEDDING_DIM`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST`, `SENTRY_DSN`, `RUN_WORKER_IN_API` (true/false), `DAILY_COST_CAP_USD`, `LOG_LEVEL`, `ENVIRONMENT` (development/test/production; defaults to production; the seed script needs development; cookies are `Secure` unless development/test), `AUTH_RATE_LIMIT_PER_MINUTE` (optional, default 20).
 
-Required from M2: `JWT_SECRET` (32+ characters, placeholders rejected), `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET`. The GitHub App callback URL is `WEB_ORIGIN/api/auth/github/callback` (ADR 0002).
+Required from M2: `JWT_SECRET` (32+ characters, placeholders rejected), `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET`. The GitHub App callback URL is `WEB_ORIGIN/api/auth/github/callback` (ADR 0002). Required from M3: `GITHUB_WEBHOOK_SECRET` (16+ characters, placeholders rejected). `GITHUB_APP_PRIVATE_KEY` is optional until M4 but parsed at startup when set. There is no `GITHUB_APP_ID`: the App JWT's issuer is `GITHUB_OAUTH_CLIENT_ID` (the App's client ID, GitHub's recommendation; ADR 0003).
 
 ## 12. Common commands (keep this section updated as the repo grows)
 
@@ -170,7 +170,8 @@ Required from M2: `JWT_SECRET` (32+ characters, placeholders rejected), `GITHUB_
 - Web dev: `npm run dev` · lint: `npm run lint` · format: `npm run format` (check: `npm run format:check`) · types: `npm run typecheck` · tests: `npm test` · build: `npm run build`
 - Web E2E (from M12): `npx playwright test`
 - Workflow lint: `docker run --rm -v "$(pwd):/repo" -w /repo rhysd/actionlint:latest`
-- Webhook tunnel for local GitHub testing: smee.io or ngrok, pointed at `POST /webhooks/github`
+- Webhook tunnel for local GitHub testing: `ngrok http 8000`, then set the App's Webhook URL to `https://<ngrok-dev-domain>/webhooks/github`. Not smee: it re-serialises the body and can break the signature (ADR 0003).
+- Replay a signed webhook payload to the local API: `cd apps/api && uv run python -m scripts.replay_webhook tests/fixtures/webhooks/pull_request.opened.json` (`--delivery-id X` twice tests duplicates, `--bad-signature` expects 401; reads `GITHUB_WEBHOOK_SECRET` from `.env`)
 
 ## 13. Definition of done (per milestone)
 

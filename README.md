@@ -2,7 +2,7 @@
 
 AI code review for GitHub pull requests, plus chat with your repo: grounded answers with `file:line` citations.
 
-> **Status: under construction.** Milestones M0 (foundation), M1 (database layer) and M2 (GitHub sign-in, sessions and RBAC) are done; nothing is deployed yet. See the checklist below.
+> **Status: under construction.** Milestones M0 (foundation), M1 (database layer), M2 (GitHub sign-in, sessions and RBAC) and M3 (GitHub App auth and webhook intake) are done; nothing is deployed yet. See the checklist below.
 
 ## Architecture
 
@@ -18,11 +18,11 @@ Requirements: Docker Desktop. For running tests outside Docker you also need Nod
 git clone https://github.com/GOPIKA-BTECH23/codelens.git
 cd codelens
 cp .env.example .env   # local settings; gitignored
-# edit .env: JWT_SECRET, GITHUB_OAUTH_CLIENT_ID, GITHUB_OAUTH_CLIENT_SECRET (see below)
+# edit .env: JWT_SECRET, GITHUB_OAUTH_CLIENT_ID, GITHUB_OAUTH_CLIENT_SECRET, GITHUB_WEBHOOK_SECRET (see below)
 docker compose up --build
 ```
 
-Sign-in needs a GitHub App of your own (free, a few minutes): GitHub → Settings → Developer settings → GitHub Apps → New. Set the **callback URL** to `http://localhost:5173/api/auth/github/callback`, give it **Organization permissions → Members: Read-only**, then put its Client ID and a client secret in `.env`. Generate `JWT_SECRET` with `openssl rand -hex 32`. The API refuses to start without these.
+Sign-in needs a GitHub App of your own (free, a few minutes): GitHub → Settings → Developer settings → GitHub Apps → New. Set the **callback URL** to `http://localhost:5173/api/auth/github/callback`, give it **Organization permissions → Members: Read-only**, then put its Client ID and a client secret in `.env`. Generate `JWT_SECRET` and `GITHUB_WEBHOOK_SECRET` with `openssl rand -hex 32` (the webhook secret must also be pasted into the App's settings). The API refuses to start without these.
 
 Then open:
 
@@ -47,6 +47,23 @@ ENVIRONMENT=development uv run python -m scripts.seed   # optional: fake dev dat
 
 If port 5432 is already used on your machine, set `POSTGRES_PORT` (for example `54329`) in the root `.env`, restart Postgres (`docker compose up -d postgres`), and use the same port in that file's `DATABASE_URL`.
 
+### Receiving GitHub webhooks locally
+
+GitHub must reach `POST /webhooks/github` on the API (port **8000**, not the web app). Use [ngrok](https://ngrok.com/) (a free account includes one dev domain):
+
+```bash
+ngrok http 8000
+# copy the https://<your-dev-domain>.ngrok-free.app "Forwarding" URL, then in the GitHub App
+# settings set Webhook URL = https://<your-dev-domain>.ngrok-free.app/webhooks/github
+```
+
+Use ngrok rather than smee.io: smee re-serialises the JSON body, which can change its bytes and break the signature check ([ADR 0003](docs/adr/0003-webhook-intake-and-github-client.md)). Without a tunnel, replay a saved, correctly signed payload:
+
+```bash
+cd apps/api
+uv run python -m scripts.replay_webhook tests/fixtures/webhooks/pull_request.opened.json
+```
+
 Run the checks without Docker (the API tests need `docker compose up -d postgres`):
 
 ```bash
@@ -59,7 +76,7 @@ cd apps/web && npm ci && npm run lint && npm run typecheck && npm test && npm ru
 - [x] M0 Foundation and monorepo scaffolding
 - [x] M1 Database layer
 - [x] M2 Authentication, sessions and RBAC
-- [ ] M3 GitHub App integration and webhook intake
+- [x] M3 GitHub App integration and webhook intake
 - [ ] M4 Worker and job processing
 - [ ] M5 LLM layer and the first agent
 - [ ] M6 Frontend dashboard and review pages
