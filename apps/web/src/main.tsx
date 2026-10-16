@@ -7,6 +7,8 @@ import { App } from './App'
 import { AuthProvider } from './auth/AuthProvider'
 import { ToastProvider } from './components/ToastProvider'
 import { ThemeProvider } from './theme/ThemeProvider'
+// Inter, self-hosted (variable weight; the browser downloads only the subsets a page uses).
+import '@fontsource-variable/inter'
 import './index.css'
 
 const queryClient = new QueryClient({
