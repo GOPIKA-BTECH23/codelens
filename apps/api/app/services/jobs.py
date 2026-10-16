@@ -62,6 +62,10 @@ class JobQueue(Protocol):
 
     async def mark_failed(self, job: Job, error: str) -> JobStatus | None: ...
 
+    async def mark_dead(self, job: Job, error: str) -> bool: ...
+
+    async def release(self, job: Job) -> bool: ...
+
     async def recover_stale_locks(self) -> int: ...
 
 
@@ -172,6 +176,34 @@ class PostgresJobQueue:
         async with self._session_factory.begin() as session:
             result = await session.execute(update(JobRow).where(self._owned(job)).values(**values))
             return new_status if result.rowcount else None  # type: ignore[attr-defined]
+
+    async def mark_dead(self, job: Job, error: str) -> bool:
+        """Permanent failure: no retry, whatever attempts are left (no handler for the job
+        type, repository uninstalled, ...). `dead` rows stay visible for a human."""
+        async with self._session_factory.begin() as session:
+            result = await session.execute(
+                update(JobRow)
+                .where(self._owned(job))
+                .values(status=JobStatus.DEAD, locked_at=None, last_error=error[:MAX_ERROR_LENGTH])
+            )
+            return bool(result.rowcount)  # type: ignore[attr-defined]
+
+    async def release(self, job: Job) -> bool:
+        """Give a claimed job back without penalty (graceful shutdown): `queued` again, runnable
+        immediately, and the attempt this claim consumed is refunded because the job did not
+        fail, we merely stopped. False if we no longer own it."""
+        async with self._session_factory.begin() as session:
+            result = await session.execute(
+                update(JobRow)
+                .where(self._owned(job))
+                .values(
+                    status=JobStatus.QUEUED,
+                    locked_at=None,
+                    attempts=JobRow.attempts - 1,
+                    run_after=func.now(),
+                )
+            )
+            return bool(result.rowcount)  # type: ignore[attr-defined]
 
     async def recover_stale_locks(self) -> int:
         """Release `running` jobs whose lock is older than the visibility timeout.
