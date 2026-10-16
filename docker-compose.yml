@@ -1,8 +1,28 @@
 # Local development stack: `docker compose up --build`
 #   web  -> http://localhost:5173   (Vite dev server, proxies /api to the api service)
 #   api  -> http://localhost:8000   (FastAPI, docs at /docs)
+#   worker  -> no port; claims jobs from Postgres (`docker compose logs -f worker`)
 #   db   -> localhost:${POSTGRES_PORT:-5432} (Postgres + pgvector)
 # Values below are DEV-ONLY defaults; override them in a root .env (gitignored) if you like.
+
+x-api-env: &api-env
+  DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-codelens}:${POSTGRES_PASSWORD:-codelens}@postgres:5432/${POSTGRES_DB:-codelens}
+  WEB_ORIGIN: http://localhost:5173
+  API_ORIGIN: http://localhost:8000
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  ENVIRONMENT: development
+  # Secrets come from the root .env (never hard-code them here). `:?` makes compose stop
+  # with this message instead of starting an API that would crash at boot.
+  JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env (openssl rand -hex 32)}
+  JWT_ACCESS_TTL_MINUTES: ${JWT_ACCESS_TTL_MINUTES:-15}
+  JWT_REFRESH_TTL_DAYS: ${JWT_REFRESH_TTL_DAYS:-7}
+  GITHUB_OAUTH_CLIENT_ID: ${GITHUB_OAUTH_CLIENT_ID:?set GITHUB_OAUTH_CLIENT_ID in .env}
+  GITHUB_OAUTH_CLIENT_SECRET: ${GITHUB_OAUTH_CLIENT_SECRET:?set GITHUB_OAUTH_CLIENT_SECRET in .env}
+  GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:?set GITHUB_WEBHOOK_SECRET in .env (openssl rand -hex 32)}
+  # Optional until M4. Inside the container a host file path does not exist, so use the
+  # base64 form here (see .env.example).
+  GITHUB_APP_PRIVATE_KEY: ${GITHUB_APP_PRIVATE_KEY:-}
+  WEBHOOK_IGNORED_PR_AUTHORS: ${WEBHOOK_IGNORED_PR_AUTHORS:-dependabot[bot],renovate[bot]}
 
 services:
   postgres:
@@ -29,23 +49,10 @@ services:
       context: ./apps/api
       dockerfile: Dockerfile.dev
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-codelens}:${POSTGRES_PASSWORD:-codelens}@postgres:5432/${POSTGRES_DB:-codelens}
-      WEB_ORIGIN: http://localhost:5173
-      API_ORIGIN: http://localhost:8000
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      ENVIRONMENT: development
-      # Secrets come from the root .env (never hard-code them here). `:?` makes compose stop
-      # with this message instead of starting an API that would crash at boot.
-      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env (openssl rand -hex 32)}
-      JWT_ACCESS_TTL_MINUTES: ${JWT_ACCESS_TTL_MINUTES:-15}
-      JWT_REFRESH_TTL_DAYS: ${JWT_REFRESH_TTL_DAYS:-7}
-      GITHUB_OAUTH_CLIENT_ID: ${GITHUB_OAUTH_CLIENT_ID:?set GITHUB_OAUTH_CLIENT_ID in .env}
-      GITHUB_OAUTH_CLIENT_SECRET: ${GITHUB_OAUTH_CLIENT_SECRET:?set GITHUB_OAUTH_CLIENT_SECRET in .env}
-      GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:?set GITHUB_WEBHOOK_SECRET in .env (openssl rand -hex 32)}
-      # Optional until M4. Inside the container a host file path does not exist, so use the
-      # base64 form here (see .env.example).
-      GITHUB_APP_PRIVATE_KEY: ${GITHUB_APP_PRIVATE_KEY:-}
-      WEBHOOK_IGNORED_PR_AUTHORS: ${WEBHOOK_IGNORED_PR_AUTHORS:-dependabot[bot],renovate[bot]}
+      <<: *api-env
+      # The job loop runs in the separate `worker` service below. Set true (and drop that
+      # service) to mimic the free-tier mode where the API process runs the worker itself.
+      RUN_WORKER_IN_API: 'false'
     ports:
       - '8000:8000'
     volumes:
@@ -63,6 +70,26 @@ services:
       timeout: 5s
       retries: 10
       start_period: 5s
+
+  worker:
+    # Same image and code as the api, different command. No published port, no healthcheck, and
+    # no --reload: restart it after changing worker code (`docker compose restart worker`).
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile.dev
+    command: ['python', '-m', 'app.worker.main']
+    environment:
+      <<: *api-env
+      RUN_WORKER_IN_API: 'false'
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-2}
+      DAILY_COST_CAP_USD: ${DAILY_COST_CAP_USD:-5}
+    volumes:
+      - ./apps/api:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    stop_grace_period: 30s # longer than WORKER_SHUTDOWN_GRACE_SECONDS (20), so SIGTERM can drain
+    restart: unless-stopped
 
   web:
     build:
