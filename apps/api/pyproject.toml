@@ -12,7 +12,8 @@ dependencies = [
     "asyncpg==0.32.0",
     "alembic==1.20.0",
     "pgvector==0.5.1",
-    "pyjwt==2.15.1",  # HS256 session tokens; M3 adds the [crypto] extra for RS256 app JWTs
+    "pyjwt[crypto]==2.15.1",  # HS256 session tokens (M2) and RS256 GitHub App JWTs (M3)
+    "cryptography==50.0.2",  # loads the GitHub App private key (also the RS256 backend)
     "httpx==0.28.1",  # outbound GitHub calls (respx mocks this client in tests)
 ]
 
