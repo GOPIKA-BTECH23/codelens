@@ -25,6 +25,8 @@ Foreign keys use `ON DELETE CASCADE` so that a deliberate hard delete (an admin 
 3. delete **only** `code_chunks`, `chat_sessions` and `chat_messages` (the later purge job does this with explicit `DELETE` statements);
 4. 30 days later, set `findings.message` and `findings.suggestion` to `NULL`.
 
+(M6 adds `review_run_files.patch`, which holds source code and is purged on uninstall too and 30 days after a PR is closed or merged: ADR 0006.)
+
 The installation, repository, pull request, review run and finding rows stay (CLAUDE.md section 7). Nobody may implement the purge as `DELETE FROM installations`; that would cascade away the metadata we promised to keep. A schema test (`test_uninstall_marker_keeps_installation_and_review_metadata`) pins the "setting `uninstalled_at` deletes nothing" half of this.
 
 ### 3. Chat ownership

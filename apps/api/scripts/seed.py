@@ -10,6 +10,7 @@ logins/names starting with "fake-", and "[FAKE]" in finding text. Running it twi
 
 import asyncio
 import sys
+from decimal import Decimal
 
 from sqlalchemy import select
 from sqlalchemy.engine import make_url
@@ -22,13 +23,33 @@ from app.db.models import (
     InstallationMember,
     PullRequest,
     Repository,
+    RepositoryAccess,
     ReviewRun,
+    ReviewRunFile,
     User,
 )
 from app.db.session import create_engine, create_session_factory
 
 LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
 FAKE_INSTALLATION_ID = -1
+
+# A made-up diff so the dashboard's review page has something to render for the seeded findings
+# (they point at lines 3 and 10).
+EXAMPLE_LINES = [
+    "import sqlite3",
+    "",
+    "password = 'hunter2'  # [FAKE] hard-coded secret",
+    "",
+    "def find(conn, name):",
+    "    cursor = conn.cursor()",
+    "    return cursor.execute(",
+    "        'SELECT * FROM users WHERE name = ' + name",
+    "    ).fetchall()",
+    "",
+    "x = 1  # [FAKE] style issue",
+    "",
+]
+EXAMPLE_PATCH = "\n".join(["@@ -0,0 +1,12 @@", *(f"+{line}" for line in EXAMPLE_LINES)])
 
 
 class UnsafeSeedTarget(Exception):
@@ -83,10 +104,32 @@ async def seed(session: AsyncSession) -> bool:
         session.add(pr)
         await session.flush()
         run = ReviewRun(
-            pull_request_id=pr.id, status="succeeded", model="fake-llm", prompt_version="seed"
+            pull_request_id=pr.id,
+            status="succeeded",
+            model="fake-llm",
+            prompt_version="seed",
+            tokens_in=1000,
+            tokens_out=200,
+            cost_usd=Decimal("0.0021"),
+            latency_ms=1800,
+            head_sha="f" * 40,
+            summary={"what_changed": "[FAKE] Adds an example module.", "notes": ["[FAKE] Seed."]},
         )
         session.add(run)
         await session.flush()
+        session.add(
+            ReviewRunFile(
+                review_run_id=run.id,
+                path="fake/example.py",
+                status="added",
+                additions=len(EXAMPLE_LINES),
+                deletions=0,
+                patch=EXAMPLE_PATCH,
+            )
+        )
+        session.add_all(
+            RepositoryAccess(user_id=user.id, repository_id=repo.id) for user in (owner, member)
+        )
         session.add_all(
             Finding(
                 review_run_id=run.id,

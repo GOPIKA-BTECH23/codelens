@@ -2,7 +2,7 @@
 
 AI code review for GitHub pull requests, plus chat with your repo: grounded answers with `file:line` citations.
 
-> **Status: under construction.** Milestones M0 to M5 are done: sign-in, webhook intake, the job worker, and a first security agent that reviews PRs and posts inline comments. Nothing is deployed yet. See the checklist below.
+> **Status: under construction.** Milestones M0 to M6 are done: sign-in, webhook intake, the job worker, a first security agent that reviews PRs and posts inline comments, and a dashboard to browse repositories, pull requests and reviews and to rate findings. Nothing is deployed yet. See the checklist below.
 
 ## Architecture
 
@@ -97,7 +97,7 @@ cd apps/web && npm ci && npm run lint && npm run typecheck && npm test && npm ru
 - [x] M3 GitHub App integration and webhook intake
 - [x] M4 Worker and job processing
 - [x] M5 LLM layer and the first agent
-- [ ] M6 Frontend dashboard and review pages
+- [x] M6 Frontend dashboard and review pages
 - [ ] M7 Deploy the MVP
 - [ ] M8 Repo indexing
 - [ ] M9 Hybrid retrieval and streaming repo chat
