@@ -30,6 +30,8 @@ def make_settings(**overrides: Any) -> Settings:
         "github_oauth_client_id": TEST_CLIENT_ID,
         "github_oauth_client_secret": TEST_CLIENT_SECRET,
         "github_webhook_secret": TEST_WEBHOOK_SECRET,
+        # Tests never call a real LLM; a test that wants groq/gemini settings says so.
+        "llm_provider": "fake",
     }
     values.update(overrides)
     return Settings(_env_file=None, **values)

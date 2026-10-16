@@ -84,6 +84,40 @@ class Settings(BaseSettings):
     # On SIGTERM, how long in-flight jobs get to finish before they are released.
     worker_shutdown_grace_seconds: float = Field(default=20.0, ge=0)
 
+    # --- LLM (M5) ---
+    # Which provider reviews PRs. `fake` is for tests and local runs without a key; the worker
+    # refuses it in production. The matching API key is checked when the worker starts (the
+    # API process alone never calls an LLM, so it does not need one).
+    llm_provider: Literal["groq", "gemini", "fake"] = "groq"
+    # Empty = the provider's default (groq: openai/gpt-oss-120b, gemini: gemini-3.8-flash).
+    # Must have a price in app/ai/llm/pricing.py.
+    llm_model: str | None = None
+    groq_api_key: SecretStr | None = None
+    gemini_api_key: SecretStr | None = None
+    # Client-side limit on LLM calls started per minute (decision 10). Keep it under your
+    # plan's limit; free tiers are small.
+    llm_requests_per_minute: int = Field(default=20, ge=1, le=1000)
+    llm_timeout_seconds: float = Field(default=60.0, gt=0, le=300)
+    llm_max_retries: int = Field(default=2, ge=0, le=5)  # the SDK's own retries per call
+
+    # --- Review policy (M5) ---
+    # Findings below this confidence are not posted (they are counted in the summary).
+    review_confidence_threshold: float = Field(default=0.6, ge=0, le=1)
+    # At most this many inline comments per PR; the rest are counted in the summary.
+    review_max_comments: int = Field(default=15, ge=1, le=50)
+    # Extra paths to skip, comma-separated, added to the built-in noise list. Forms:
+    # `dir/` (a directory anywhere), `*.ext` / `name` (file name), `path/*.py` (whole path).
+    review_ignore_patterns: Annotated[tuple[str, ...], NoDecode] = ()
+    # Files with more changed lines than this are skipped as too large to review well.
+    review_max_file_changed_lines: int = Field(default=1000, ge=1)
+    # PRs with nothing to review (docs, lockfiles, generated or binary files only): `skip`
+    # marks the run skipped and posts nothing; `comment` posts a short summary.
+    review_no_code_behavior: Literal["skip", "comment"] = "skip"
+    # Estimated diff tokens per LLM call. Larger diffs are split into several calls.
+    review_chunk_max_tokens: int = Field(default=12_000, ge=1_000, le=100_000)
+    # LLM calls in flight at once for one review (the rate limiter still applies).
+    review_llm_concurrency: int = Field(default=2, ge=1, le=8)
+
     # --- Abuse protection (M2) ---
     # Requests per minute per client IP on /auth/*.
     auth_rate_limit_per_minute: int = Field(default=20, ge=1)
@@ -117,6 +151,8 @@ class Settings(BaseSettings):
         "github_oauth_client_id",
         "github_oauth_client_secret",
         "github_webhook_secret",
+        "groq_api_key",
+        "gemini_api_key",
         mode="before",
     )
     @classmethod
@@ -172,11 +208,15 @@ class Settings(BaseSettings):
             )
         return value
 
-    @field_validator("github_app_private_key", mode="before")
+    @field_validator(
+        "github_app_private_key", "groq_api_key", "gemini_api_key", "llm_model", mode="before"
+    )
     @classmethod
-    def _empty_private_key_means_unset(cls, value: object) -> object:
-        # `GITHUB_APP_PRIVATE_KEY=` in .env arrives as "".
-        if isinstance(value, str) and not value.strip():
+    def _empty_means_unset(cls, value: object) -> object:
+        # `GROQ_API_KEY=` in .env arrives as "". Pydantic runs "before" validators in reverse
+        # order of definition, so this runs before the paste-artifact check above.
+        text = value.get_secret_value() if isinstance(value, SecretStr) else value
+        if isinstance(text, str) and not text.strip():
             return None
         return value
 
@@ -188,6 +228,13 @@ class Settings(BaseSettings):
             from app.services.github_app import load_private_key
 
             load_private_key(value.get_secret_value())  # raises ValueError, never shows the key
+        return value
+
+    @field_validator("review_ignore_patterns", mode="before")
+    @classmethod
+    def _split_patterns(cls, value: object) -> object:
+        if isinstance(value, str):
+            return tuple(p.strip() for p in value.split(",") if p.strip())
         return value
 
     @field_validator("webhook_ignored_pr_authors", mode="before")
