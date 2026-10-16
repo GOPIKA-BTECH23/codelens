@@ -1,4 +1,9 @@
-"""The worker against real Postgres: claiming, retries, shutdown and the review_runs states."""
+"""The worker against real Postgres: claiming, retries, shutdown and the review_runs states.
+
+These tests are about the queue and the review_pr WRAPPER, so they plug in a stand-in
+pipeline (StandInPipeline) instead of the real one. The real pipeline, with a mocked GitHub
+and the FakeLLM, is tested in test_review_pipeline.py.
+"""
 
 import asyncio
 import contextlib
@@ -7,6 +12,7 @@ import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from datetime import timedelta
 from decimal import Decimal
+from typing import Literal
 
 import pytest
 from sqlalchemy import func, select, update
@@ -17,17 +23,34 @@ from app.db.models.accounts import Installation
 from app.db.models.code import Job as JobRow
 from app.db.models.enums import JobStatus, RunStatus
 from app.db.models.repos import PullRequest, Repository, ReviewRun
+from app.services import runs as runs_service
 from app.services.jobs import Job, PostgresJobQueue
 from app.services.webhooks import JOB_INDEX_REPO, JOB_PURGE_INSTALLATION, JOB_REVIEW_PR
 from app.worker import handlers as handlers_module
 from app.worker.errors import PermanentJobError
-from app.worker.handlers import HANDLERS, STUB_MODEL, Handler, HandlerContext
+from app.worker.handlers import HANDLERS, Handler, HandlerContext
 from app.worker.main import Worker
+from app.worker.review import ReviewPipeline
 
 Factory = async_sessionmaker[AsyncSession]
 
 
 # --- helpers ------------------------------------------------------------------------------
+
+STAND_IN_MODEL = "test-stand-in-pipeline"
+
+
+class StandInPipeline:
+    """Does what the real pipeline does to the run on success, and records each call."""
+
+    def __init__(self, factory: Factory) -> None:
+        self.factory = factory
+        self.calls: list[tuple[uuid.UUID, str | None, str]] = []  # (run, head_sha, run status)
+
+    async def __call__(self, run_id: uuid.UUID, head_sha: str | None) -> None:
+        self.calls.append((run_id, head_sha, (await get_run(self.factory, run_id)).status))
+        async with self.factory.begin() as session:
+            await runs_service.mark_succeeded(session, run_id, model=STAND_IN_MODEL)
 
 
 @pytest.fixture
@@ -46,9 +69,14 @@ def make_worker(
     handlers: dict[str, Handler] | None = None,
     *,
     cap: Decimal = Decimal("5"),
+    pipeline: ReviewPipeline | Literal["none"] | None = None,
     **kwargs: float,
 ) -> Worker:
-    ctx = HandlerContext(session_factory=factory, daily_cost_cap_usd=cap)
+    ctx = HandlerContext(
+        session_factory=factory,
+        daily_cost_cap_usd=cap,
+        review_pipeline=(None if pipeline == "none" else pipeline or StandInPipeline(factory)),
+    )
     settings: dict[str, float] = {
         "concurrency": 2,
         "poll_seconds": 0.02,
@@ -356,21 +384,32 @@ async def test_job_of_a_crashed_worker_is_recovered_and_run_again(
 # --- review_pr and the review_runs states ----------------------------------------------------
 
 
-async def test_review_run_goes_queued_to_succeeded_and_says_no_review_happened(
-    session_factory: Factory, queue: PostgresJobQueue, caplog: pytest.LogCaptureFixture
+async def test_handler_hands_the_running_run_and_its_head_sha_to_the_pipeline(
+    session_factory: Factory, queue: PostgresJobQueue
 ) -> None:
-    caplog.set_level(logging.INFO)
+    pipeline = StandInPipeline(session_factory)
     run_id = await make_run(session_factory)
-    job_id = await enqueue_review(queue, session_factory, run_id)
-    async with running(make_worker(session_factory, queue)):
+    job_id = await enqueue(
+        queue, session_factory, JOB_REVIEW_PR, {"review_run_id": str(run_id), "head_sha": "c0ffee"}
+    )
+    async with running(make_worker(session_factory, queue, pipeline=pipeline)):
         await wait_for(job_is(session_factory, job_id, JobStatus.SUCCEEDED))
 
+    # The pipeline only ever sees a `running` run, with the commit the webhook recorded.
+    assert pipeline.calls == [(run_id, "c0ffee", RunStatus.RUNNING)]
     run = await get_run(session_factory, run_id)
     assert run.status == RunStatus.SUCCEEDED
     assert run.started_at is not None and run.finished_at is not None
-    assert run.model == STUB_MODEL  # a stub "success" is marked in the data, not just the logs
-    assert run.error is None
-    assert "NO REVIEW WAS PERFORMED" in caplog.text
+
+
+async def test_review_job_fails_permanently_without_a_pipeline(
+    session_factory: Factory, queue: PostgresJobQueue
+) -> None:
+    run_id = await make_run(session_factory)
+    job_id = await enqueue_review(queue, session_factory, run_id)
+    async with running(make_worker(session_factory, queue, pipeline="none")):
+        await wait_for(job_is(session_factory, job_id, JobStatus.DEAD))
+    assert (await get_run(session_factory, run_id)).status == RunStatus.FAILED
 
 
 async def test_superseded_run_exits_early_without_touching_the_run(
@@ -435,13 +474,13 @@ async def test_transient_error_requeues_the_run_and_the_retry_succeeds(
     real = handlers_module._perform_review
     seen_between: list[tuple[str, str | None]] = []
 
-    async def flaky(ctx: HandlerContext, run_id: uuid.UUID) -> None:
+    async def flaky(ctx: HandlerContext, run_id: uuid.UUID, head_sha: str | None) -> None:
         run = await get_run(session_factory, run_id)
         if not seen_between and run.error is None:
             seen_between.append(("first", None))
             raise ConnectionError("github is down")
         seen_between.append((run.status, run.error))  # state the retry starts from
-        await real(ctx, run_id)
+        await real(ctx, run_id, head_sha)
 
     monkeypatch.setattr(handlers_module, "_perform_review", flaky)
     run_id = await make_run(session_factory)
@@ -458,7 +497,7 @@ async def test_transient_error_requeues_the_run_and_the_retry_succeeds(
 async def test_run_is_failed_when_the_last_attempt_fails(
     session_factory: Factory, queue: PostgresJobQueue, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    async def always_fails(ctx: HandlerContext, run_id: uuid.UUID) -> None:
+    async def always_fails(ctx: HandlerContext, run_id: uuid.UUID, head_sha: str | None) -> None:
         raise ConnectionError("github is down")
 
     monkeypatch.setattr(handlers_module, "_perform_review", always_fails)
@@ -501,7 +540,7 @@ async def test_run_is_skipped_with_a_reason_when_the_daily_cap_is_reached(
     run = await get_run(session_factory, run_id)
     assert run.status == RunStatus.SKIPPED
     assert run.error is not None and "daily cost cap reached" in run.error
-    assert run.model is None  # no review, not even the stub
+    assert run.model is None  # the pipeline never ran
 
 
 async def test_run_proceeds_when_spend_is_under_the_cap(

@@ -13,7 +13,8 @@ Verified against GitHub's docs on 2026-10-16:
 - Tarball: GET /repos/{o}/{r}/tarball/{ref} answers 302 to a temporary download URL
   (private repos: valid five minutes).
 - Reviews: POST /repos/{o}/{r}/pulls/{n}/reviews with commit_id, body, event and
-  comments[{path, line, side, start_line, start_side, body}]. Issue comments: POST
+  comments[{path, line, side, start_line, start_side, body}]; GET .../pulls/{n}/reviews
+  lists them (paginated, oldest first). Issue comments: POST
   /repos/{o}/{r}/issues/{n}/comments (a PR is an issue). Both need "Pull requests: write".
 
 Retry policy (see ADR 0003):
@@ -133,6 +134,14 @@ class PullRequestFile(BaseModel):
     previous_filename: str | None = None
 
 
+class PullRequestReview(BaseModel):
+    """A review that already exists on the PR (used to avoid posting ours twice)."""
+
+    id: int
+    body: str | None = None
+    commit_id: str | None = None
+
+
 class ReviewComment(BaseModel):
     """One inline comment, anchored by file line on one side of the diff (decision 16)."""
 
@@ -241,6 +250,11 @@ class GitHubClient:
     async def list_pull_request_files(self, repo: str, number: int) -> list[PullRequestFile]:
         items = await self._paginate(f"{_repo_url(repo)}/pulls/{number}/files")
         return [PullRequestFile.model_validate(item) for item in items]
+
+    async def list_reviews(self, repo: str, number: int) -> list[PullRequestReview]:
+        """Every review on the PR, oldest first (paginated)."""
+        items = await self._paginate(f"{_repo_url(repo)}/pulls/{number}/reviews")
+        return [PullRequestReview.model_validate(item) for item in items]
 
     # --- contents ------------------------------------------------------------------------
 

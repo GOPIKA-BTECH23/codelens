@@ -1,0 +1,14 @@
+{
+  "case": "path_traversal",
+  "description": "A download endpoint joins a query parameter onto the upload directory without normalising it.",
+  "has_code_to_review": true,
+  "expected_findings": [
+    {
+      "file": "app/files.py",
+      "line": 19,
+      "category": "path-traversal",
+      "min_severity": "high"
+    }
+  ],
+  "optional_findings": []
+}

@@ -1,0 +1,17 @@
+diff --git a/app/files.py b/app/files.py
+index da6edca..0022824 100644
+--- a/app/files.py
++++ b/app/files.py
+@@ -11,3 +11,12 @@ UPLOAD_DIR = "/srv/uploads"
+ @app.route("/health")
+ def health():
+     return "ok"
++
++
++@app.route("/download")
++def download():
++    name = request.args.get("name", "")
++    path = os.path.join(UPLOAD_DIR, name)
++    if not os.path.exists(path):
++        abort(404)
++    return send_file(path)

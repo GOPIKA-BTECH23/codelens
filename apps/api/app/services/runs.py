@@ -15,14 +15,18 @@ the caller owns the transaction.
 """
 
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.llm.base import UsageTotals
+from app.ai.schemas import Finding
 from app.db.models.accounts import Installation
 from app.db.models.enums import RunStatus
+from app.db.models.repos import Finding as FindingRow
 from app.db.models.repos import PullRequest, Repository, ReviewRun
 
 MAX_ERROR_LENGTH = 2000
@@ -76,6 +80,82 @@ async def load_run(session: AsyncSession, run_id: uuid.UUID) -> RunInfo | None:
     )
 
 
+@dataclass(frozen=True)
+class ReviewTarget:
+    """Which PR a run reviews, and through which installation (for the GitHub token)."""
+
+    repo_full_name: str
+    pr_number: int
+    github_installation_id: int
+
+
+async def load_review_target(session: AsyncSession, run_id: uuid.UUID) -> ReviewTarget | None:
+    row = (
+        await session.execute(
+            select(Repository.full_name, PullRequest.number, Installation.github_installation_id)
+            .select_from(ReviewRun)  # the join chain starts at the run
+            .join(PullRequest, PullRequest.id == ReviewRun.pull_request_id)
+            .join(Repository, Repository.id == PullRequest.repository_id)
+            .join(Installation, Installation.id == Repository.installation_id)
+            .where(ReviewRun.id == run_id)
+        )
+    ).one_or_none()
+    if row is None:
+        return None
+    return ReviewTarget(row.full_name, row.number, row.github_installation_id)
+
+
+async def add_usage(
+    session: AsyncSession,
+    run_id: uuid.UUID,
+    totals: UsageTotals,
+    *,
+    model: str,
+    prompt_version: str | None,
+) -> None:
+    """ADD this attempt's LLM usage to the run's totals (any status).
+
+    Added, not overwritten: if an attempt spends tokens and then fails, the retry spends
+    them again, and both were (notionally) billed. Overwriting would hide real spend from
+    the daily cost cap.
+    """
+    await session.execute(
+        update(ReviewRun)
+        .where(ReviewRun.id == run_id)
+        .values(
+            tokens_in=func.coalesce(ReviewRun.tokens_in, 0) + totals.tokens_in,
+            tokens_out=func.coalesce(ReviewRun.tokens_out, 0) + totals.tokens_out,
+            cost_usd=func.coalesce(ReviewRun.cost_usd, 0) + totals.cost_usd,
+            model=model,
+            prompt_version=prompt_version,
+        )
+    )
+
+
+async def replace_findings(
+    session: AsyncSession, run_id: uuid.UUID, head_sha: str, findings: Sequence[Finding]
+) -> None:
+    """Store the findings about to be posted (replacing any from an earlier attempt that
+    never got posted) and the commit they were computed for."""
+    await session.execute(delete(FindingRow).where(FindingRow.review_run_id == run_id))
+    session.add_all(
+        FindingRow(
+            review_run_id=run_id,
+            file=f.file,
+            line=f.line,
+            end_line=f.end_line,
+            severity=f.severity.value,
+            category=f.category,
+            message=f.message,
+            suggestion=f.suggestion,
+            confidence=f.confidence,
+        )
+        for f in findings
+    )
+    await session.execute(update(ReviewRun).where(ReviewRun.id == run_id).values(head_sha=head_sha))
+    await session.flush()
+
+
 async def _transition(
     session: AsyncSession, run_id: uuid.UUID, to: RunStatus, **values: Any
 ) -> bool:
@@ -100,7 +180,7 @@ async def mark_running(session: AsyncSession, run_id: uuid.UUID) -> bool:
 
 
 async def mark_succeeded(session: AsyncSession, run_id: uuid.UUID, **results: Any) -> bool:
-    """running -> succeeded. `results` carries model/tokens/cost/latency once M5 has them."""
+    """running -> succeeded. `results` sets columns such as latency_ms and github_review_id."""
     return await _transition(session, run_id, OK, finished_at=func.now(), error=None, **results)
 
 

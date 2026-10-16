@@ -15,6 +15,8 @@ dependencies = [
     "pyjwt[crypto]==2.15.1",  # HS256 session tokens (M2) and RS256 GitHub App JWTs (M3)
     "cryptography==50.0.2",  # loads the GitHub App private key (also the RS256 backend)
     "httpx==0.28.1",  # outbound GitHub calls (respx mocks this client in tests)
+    "google-genai==2.31.0",
+    "groq==1.7.0",
 ]
 
 [dependency-groups]
@@ -46,8 +48,8 @@ select = ["E", "F", "I", "UP", "B", "SIM", "C4"]
 
 [tool.mypy]
 python_version = "3.12"
-files = ["app/core", "app/services", "app/worker", "app/deps.py"]
-# CLAUDE.md decision 22: strict on core/, services/ and ai/. Each directory is added to
+files = ["app/core", "app/services", "app/worker", "app/ai", "app/deps.py"]
+# CLAUDE.md decision 22: strict on core/, services/ and ai/ (ai/ joined in M5). Each directory is added to
 # `files` (and to the CI step) in the milestone that fills it.
 strict = true
 

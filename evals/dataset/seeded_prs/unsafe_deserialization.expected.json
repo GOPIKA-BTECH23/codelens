@@ -1,0 +1,20 @@
+{
+  "case": "unsafe_deserialization",
+  "description": "A new module unpickles a cookie and yaml.load()s a request body with the unsafe Loader.",
+  "has_code_to_review": true,
+  "expected_findings": [
+    {
+      "file": "app/session.py",
+      "line": 11,
+      "category": "unsafe-deserialization",
+      "min_severity": "high"
+    },
+    {
+      "file": "app/session.py",
+      "line": 15,
+      "category": "unsafe-deserialization",
+      "min_severity": "high"
+    }
+  ],
+  "optional_findings": []
+}

@@ -53,6 +53,8 @@ CREDENTIAL_FIELDS = [
     "github_oauth_client_id",
     "github_oauth_client_secret",
     "github_webhook_secret",
+    "groq_api_key",
+    "gemini_api_key",
 ]
 # Each bad value embeds this marker, so the test can prove the value is never echoed.
 MARKER = "Zq9SentinelValue4fd0c1b2a3e4f5a6b7c8d9e0"
@@ -164,3 +166,53 @@ def test_ignored_pr_authors_parse_from_a_comma_separated_env_var(
 
 def test_ignored_pr_authors_default() -> None:
     assert make_settings().webhook_ignored_pr_authors == {"dependabot[bot]", "renovate[bot]"}
+
+
+# --- LLM and review settings (M5) ---------------------------------------------------------------
+
+
+def test_llm_defaults_groq_and_skips_prs_without_code(monkeypatch: pytest.MonkeyPatch) -> None:
+    for name in ("LLM_PROVIDER", "REVIEW_NO_CODE_BEHAVIOR", "GROQ_API_KEY"):
+        monkeypatch.delenv(name, raising=False)
+    s = Settings(
+        _env_file=None,
+        database_url="postgresql+asyncpg://u:p@h/db",
+        web_origin="https://codelens.example",
+        jwt_secret="x" * 32,
+        github_oauth_client_id="id",
+        github_oauth_client_secret="secret-value",
+        github_webhook_secret="w" * 32,
+    )
+    assert s.llm_provider == "groq"
+    assert s.review_no_code_behavior == "skip"
+    assert s.groq_api_key is None  # required only when the worker starts (factory)
+
+
+@pytest.mark.parametrize("field", ["groq_api_key", "gemini_api_key", "llm_model"])
+@pytest.mark.parametrize("empty", ["", "   "])
+def test_empty_llm_values_mean_unset(field: str, empty: str) -> None:
+    assert getattr(make_settings(**{field: empty}), field) is None
+
+
+def test_api_keys_are_hidden_from_repr() -> None:
+    s = make_settings(groq_api_key=MARKER, gemini_api_key=MARKER)
+    assert MARKER not in repr(s)
+
+
+def test_review_ignore_patterns_are_comma_separated() -> None:
+    s = make_settings(review_ignore_patterns=" generated/ , *.pb.ts,,")
+    assert s.review_ignore_patterns == ("generated/", "*.pb.ts")
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("review_confidence_threshold", 1.5),
+        ("review_max_comments", 0),
+        ("review_no_code_behavior", "maybe"),
+        ("llm_provider", "openai"),
+    ],
+)
+def test_review_settings_are_validated(field: str, value: object) -> None:
+    with pytest.raises(ValidationError, match=field):
+        make_settings(**{field: value})

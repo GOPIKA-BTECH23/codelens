@@ -27,11 +27,9 @@ from app.services import cost_guard, runs
 from app.services.jobs import Job
 from app.services.webhooks import JOB_INDEX_REPO, JOB_REVIEW_PR
 from app.worker.errors import PermanentJobError
+from app.worker.review import ReviewPipeline
 
 logger = logging.getLogger("app.worker.handlers")
-
-# Stored in review_runs.model so a stub "success" can never be mistaken for a real review.
-STUB_MODEL = "m4-stub-no-review"
 
 
 @dataclass(frozen=True)
@@ -40,6 +38,8 @@ class HandlerContext:
 
     session_factory: async_sessionmaker[AsyncSession]
     daily_cost_cap_usd: Decimal
+    # The M5 review pipeline (worker/review.py). None only in tests that never reach it.
+    review_pipeline: ReviewPipeline | None = None
 
 
 Handler = Callable[[Job, HandlerContext], Coroutine[Any, Any, None]]
@@ -53,19 +53,20 @@ def _error_text(exc: BaseException) -> str:
 
 
 async def review_pr(job: Job, ctx: HandlerContext) -> None:
-    """Run a review. M4: the run goes queued -> running -> succeeded and NO REVIEW HAPPENS.
+    """Run a review: gate checks here, then the pipeline in worker/review.py.
 
     This wrapper keeps review_runs consistent with the job: a transient error puts the run
     back to `queued` (the job will be retried), the final failed attempt or a permanent error
-    marks it `failed`. The real pipeline replaces `_perform_review` in M5.
+    marks it `failed`.
     """
     try:
         run_id = uuid.UUID(str(job.payload["review_run_id"]))
     except (KeyError, ValueError) as exc:
         raise PermanentJobError("job payload has no valid review_run_id") from exc
 
+    head_sha = job.payload.get("head_sha")
     try:
-        await _perform_review(ctx, run_id)
+        await _perform_review(ctx, run_id, head_sha if isinstance(head_sha, str) else None)
     except PermanentJobError as exc:
         await _fail_run(ctx, run_id, str(exc))
         raise
@@ -86,8 +87,8 @@ async def _fail_run(ctx: HandlerContext, run_id: uuid.UUID, message: str) -> Non
         await runs.mark_failed(session, run_id, message)
 
 
-async def _perform_review(ctx: HandlerContext, run_id: uuid.UUID) -> None:
-    """Decide whether to run, then run (stub). Kept separate so tests can make it fail."""
+async def _perform_review(ctx: HandlerContext, run_id: uuid.UUID, head_sha: str | None) -> None:
+    """Decide whether to run, then run the pipeline. Kept separate so tests can make it fail."""
     async with ctx.session_factory.begin() as session:
         info = await runs.load_run(session, run_id)
         if info is None:
@@ -107,18 +108,12 @@ async def _perform_review(ctx: HandlerContext, run_id: uuid.UUID) -> None:
             await runs.mark_skipped(session, run_id, reason)
             logger.warning("review skipped: %s", reason)
             return
+        if ctx.review_pipeline is None:
+            raise PermanentJobError("no review pipeline configured in this worker")
         await runs.mark_running(session, run_id)  # committed here, so observers see `running`
     logger.info("review run started")
-
-    # M5 replaces everything between this line and mark_succeeded with the LangGraph pipeline.
-    logger.warning("review_pr is a stub: NO REVIEW WAS PERFORMED (the real pipeline arrives in M5)")
-
-    async with ctx.session_factory.begin() as session:
-        if await runs.mark_succeeded(session, run_id, model=STUB_MODEL):
-            logger.info("review run finished (stub, no review performed)")
-        else:
-            # A webhook superseded the run while we worked; its result must be dropped.
-            logger.info("run changed state while running (superseded?); result dropped")
+    # The pipeline ends the run itself (succeeded / skipped) or raises (see the wrapper).
+    await ctx.review_pipeline(run_id, head_sha)
 
 
 # --- index_repo -------------------------------------------------------------------------------

@@ -1,0 +1,20 @@
+{
+  "case": "sql_injection",
+  "description": "Two queries are built by string concatenation and an f-string from caller input.",
+  "has_code_to_review": true,
+  "expected_findings": [
+    {
+      "file": "app/users.py",
+      "line": 9,
+      "category": "sql-injection",
+      "min_severity": "high"
+    },
+    {
+      "file": "app/users.py",
+      "line": 14,
+      "category": "sql-injection",
+      "min_severity": "high"
+    }
+  ],
+  "optional_findings": []
+}

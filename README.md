@@ -2,7 +2,7 @@
 
 AI code review for GitHub pull requests, plus chat with your repo: grounded answers with `file:line` citations.
 
-> **Status: under construction.** Milestones M0 (foundation), M1 (database layer), M2 (GitHub sign-in, sessions and RBAC) and M3 (GitHub App auth and webhook intake) are done; nothing is deployed yet. See the checklist below.
+> **Status: under construction.** Milestones M0 to M5 are done: sign-in, webhook intake, the job worker, and a first security agent that reviews PRs and posts inline comments. Nothing is deployed yet. See the checklist below.
 
 ## Architecture
 
@@ -18,7 +18,8 @@ Requirements: Docker Desktop. For running tests outside Docker you also need Nod
 git clone https://github.com/GOPIKA-BTECH23/codelens.git
 cd codelens
 cp .env.example .env   # local settings; gitignored
-# edit .env: JWT_SECRET, GITHUB_OAUTH_CLIENT_ID, GITHUB_OAUTH_CLIENT_SECRET, GITHUB_WEBHOOK_SECRET (see below)
+# edit .env: JWT_SECRET, GITHUB_OAUTH_CLIENT_ID, GITHUB_OAUTH_CLIENT_SECRET, GITHUB_WEBHOOK_SECRET,
+#           GITHUB_APP_PRIVATE_KEY and GROQ_API_KEY (see below)
 docker compose up --build
 ```
 
@@ -51,7 +52,13 @@ If port 5432 is already used on your machine, set `POSTGRES_PORT` (for example `
 
 `docker compose up` also starts a `worker` service (`python -m app.worker.main`) that claims jobs from the Postgres queue. Follow it with `docker compose logs -f worker`; every line carries the `job_id` (and `run_id` for reviews).
 
-**M4 note:** the `review_pr` and `index_repo` handlers are stubs. A PR moves `queued → running → succeeded`, but **no review is performed** (the run's `model` column says `m4-stub-no-review`); the real pipeline arrives in M5. Uninstall `purge_installation` jobs have no handler yet and end up `dead` on purpose ([ADR 0004](docs/adr/0004-worker-deployment-modes.md)).
+The worker needs `GITHUB_APP_PRIVATE_KEY` (base64 form for Docker, see [.env.example](.env.example)) and the key of the chosen LLM provider (`LLM_PROVIDER=groq` by default, so `GROQ_API_KEY`), and refuses to start without them. `index_repo` is still a stub (M8), and uninstall `purge_installation` jobs have no handler yet and end up `dead` on purpose ([ADR 0004](docs/adr/0004-worker-deployment-modes.md)).
+
+### What a review does
+
+For each `pull_request` opened/synchronize/reopened event the worker fetches the PR's files, drops noise (lockfiles, vendored, minified, generated, binary, very large files), sends the remaining diff to the security agent, keeps only findings that point at real changed lines with evidence from the diff, and posts **one** review: inline comments plus a summary that says it is AI-generated and may be wrong. Docs-only PRs are skipped by default (`REVIEW_NO_CODE_BEHAVIOR`). Every run records tokens, estimated cost at list price, latency and the prompt version. Details: [ADR 0005](docs/adr/0005-llm-layer-and-review-posting.md).
+
+**Privacy:** the diff of every reviewed PR is sent to the configured LLM provider. Use CodeLens on public or demo repositories. Gemini requests are sent with `store=false`; note that free tiers of LLM providers may use requests to improve their products.
 
 | Mode | How | Good for | Trade-offs |
 | ---- | --- | -------- | ---------- |
@@ -89,7 +96,7 @@ cd apps/web && npm ci && npm run lint && npm run typecheck && npm test && npm ru
 - [x] M2 Authentication, sessions and RBAC
 - [x] M3 GitHub App integration and webhook intake
 - [x] M4 Worker and job processing
-- [ ] M5 LLM layer and the first agent
+- [x] M5 LLM layer and the first agent
 - [ ] M6 Frontend dashboard and review pages
 - [ ] M7 Deploy the MVP
 - [ ] M8 Repo indexing
