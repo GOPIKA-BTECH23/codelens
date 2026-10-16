@@ -1,6 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router'
 import { describe, expect, it, vi } from 'vitest'
+import { ThemeProvider } from '../theme/ThemeProvider'
 import { HealthPage } from './HealthPage'
 
 function renderPage() {
@@ -8,7 +10,11 @@ function renderPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={client}>
-      <HealthPage />
+      <ThemeProvider>
+        <MemoryRouter>
+          <HealthPage />
+        </MemoryRouter>
+      </ThemeProvider>
     </QueryClientProvider>,
   )
 }
