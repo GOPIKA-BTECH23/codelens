@@ -86,7 +86,7 @@
 
 ## Manual steps for you
 
-1. **Apply the migration:** `cd apps/api && uv run alembic upgrade head` (docker compose does this on start if your compose file runs migrations; otherwise run it).
+1. **Apply the migration:** `cd apps/api && uv run alembic upgrade head` (docker compose does not run migrations).
 2. **Rebuild the web container** (`package.json` changed): `docker compose up --build -V`.
 3. **Produce a review that has a diff:** open or push to a PR on a repo where the dev App is installed (reviews from before M6 have findings but no stored diff).
 4. **Click through:** `http://localhost:5173` → Sign in with GitHub → Dashboard → the repo → the PR → press Useful on a finding → reload and check it stuck.
