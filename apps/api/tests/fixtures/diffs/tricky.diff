@@ -1,0 +1,83 @@
+diff --git a/assets/logo.png b/assets/logo.png
+index c8b49c8..991c98a 100644
+Binary files a/assets/logo.png and b/assets/logo.png differ
+diff --git a/src/added.py b/src/added.py
+new file mode 100644
+index 0000000..8e46e70
+--- /dev/null
++++ b/src/added.py
+@@ -0,0 +1,2 @@
++def hello():
++    return 'hi'
+diff --git "a/src/caf\303\251.py" "b/src/caf\303\251.py"
+index 7d4290a..407de30 100644
+--- "a/src/caf\303\251.py"
++++ "b/src/caf\303\251.py"
+@@ -1 +1 @@
+-x = 1
++x = 2
+diff --git a/src/deleted.py b/src/deleted.py
+deleted file mode 100644
+index 8d74fb1..0000000
+--- a/src/deleted.py
++++ /dev/null
+@@ -1,2 +0,0 @@
+-gone = True
+-also_gone = 1
+diff --git a/src/multi.py b/src/multi.py
+index bab081f..87b2114 100644
+--- a/src/multi.py
++++ b/src/multi.py
+@@ -1,6 +1,6 @@
+ line 1
+ line 2
+-line 3
++line 3 changed
+ line 4
+ line 5
+ line 6
+@@ -28,6 +28,7 @@ line 27
+ line 28
+ line 29
+ line 30
++inserted after 30
+ line 31
+ line 32
+ line 33
+diff --git a/src/old_name.py b/src/new_name.py
+similarity index 94%
+rename from src/old_name.py
+rename to src/new_name.py
+index 4f69306..3a795b2 100644
+--- a/src/old_name.py
++++ b/src/new_name.py
+@@ -7,7 +7,7 @@ value_6 = 6
+ value_7 = 7
+ value_8 = 8
+ value_9 = 9
+-value_10 = 10
++value_10 = 100
+ value_11 = 11
+ value_12 = 12
+ value_13 = 13
+diff --git a/src/no_newline.py b/src/no_newline.py
+index eae66cb..c01d739 100644
+--- a/src/no_newline.py
++++ b/src/no_newline.py
+@@ -1,2 +1,2 @@
+ a = 1
+-b = 2
+\ No newline at end of file
++b = 3
+\ No newline at end of file
+diff --git a/src/pure_rename_old.py b/src/pure_rename_new.py
+similarity index 100%
+rename from src/pure_rename_old.py
+rename to src/pure_rename_new.py
+diff --git a/src/sql.sql b/src/sql.sql
+index bb0acf6..59a2566 100644
+--- a/src/sql.sql
++++ b/src/sql.sql
+@@ -1,2 +1 @@
+--- schema notes
+ CREATE TABLE t (id int);
