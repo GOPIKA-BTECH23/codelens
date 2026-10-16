@@ -108,9 +108,9 @@ def test_evidence_matching_ignores_whitespace_and_accepts_multi_line_ranges(
     [
         # Seen from openai/gpt-oss-120b on 2026-10-17: the rendered number column and marker
         # copied along with the code.
-        "9 +     query = \"SELECT id, email FROM users WHERE username = '\" + username + \"'\"",
-        "     9 + query = \"SELECT id, email FROM users WHERE username = '\"",
-        "+    query = \"SELECT id, email FROM users",
+        '9 +     query = "SELECT id, email FROM users WHERE username = \'" + username + "\'"',
+        '     9 + query = "SELECT id, email FROM users WHERE username = \'"',
+        '+    query = "SELECT id, email FROM users',
     ],
 )
 def test_evidence_copied_with_the_rendered_prefix_still_matches(
