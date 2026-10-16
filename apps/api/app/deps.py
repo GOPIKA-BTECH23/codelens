@@ -23,6 +23,7 @@ from app.db.models.enums import MemberRole
 from app.db.session import get_session
 from app.services import rbac
 from app.services.github_oauth import GitHubOAuthClient
+from app.services.jobs import JobQueue
 
 # scope="function": commit/rollback runs when the route function returns, before the
 # response is sent. See get_session.
@@ -35,6 +36,14 @@ def get_app_settings(request: Request) -> Settings:
 
 
 SettingsDep = Annotated[Settings, Depends(get_app_settings)]
+
+
+def get_job_queue(request: Request) -> JobQueue:
+    queue: JobQueue = request.app.state.job_queue
+    return queue
+
+
+JobQueueDep = Annotated[JobQueue, Depends(get_job_queue)]
 
 
 # --- authentication ------------------------------------------------------------------------

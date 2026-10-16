@@ -1,0 +1,153 @@
+{
+  "action": "closed",
+  "number": 1,
+  "pull_request": {
+    "url": "https://api.github.com/repos/demo-owner/codelens-demo/pulls/1",
+    "id": 4004,
+    "node_id": "PR_demo",
+    "number": 1,
+    "state": "closed",
+    "locked": false,
+    "title": "Add input validation to the signup form",
+    "user": {
+      "login": "demo-contributor",
+      "id": 1002,
+      "type": "User",
+      "site_admin": false
+    },
+    "body": "Redacted PR description.",
+    "created_at": "2026-10-16T10:00:00Z",
+    "updated_at": "2026-10-16T10:00:00Z",
+    "closed_at": "2026-10-16T11:00:00Z",
+    "merged_at": "2026-10-16T11:00:00Z",
+    "draft": false,
+    "head": {
+      "label": "demo-owner:feature/validation",
+      "ref": "feature/validation",
+      "sha": "3b1d6c5e2f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c",
+      "user": {
+        "login": "demo-owner",
+        "id": 1001,
+        "node_id": "U_demo",
+        "type": "User",
+        "site_admin": false,
+        "avatar_url": "https://avatars.githubusercontent.com/u/1001?v=4",
+        "html_url": "https://github.com/demo-owner"
+      },
+      "repo": {
+        "id": 2002,
+        "node_id": "R_demo",
+        "name": "codelens-demo",
+        "full_name": "demo-owner/codelens-demo",
+        "private": false,
+        "owner": {
+          "login": "demo-owner",
+          "id": 1001,
+          "node_id": "U_demo",
+          "type": "User",
+          "site_admin": false,
+          "avatar_url": "https://avatars.githubusercontent.com/u/1001?v=4",
+          "html_url": "https://github.com/demo-owner"
+        },
+        "html_url": "https://github.com/demo-owner/codelens-demo",
+        "description": "Demo repository for CodeLens",
+        "fork": false,
+        "url": "https://api.github.com/repos/demo-owner/codelens-demo",
+        "created_at": "2026-10-01T09:00:00Z",
+        "updated_at": "2026-10-16T09:00:00Z",
+        "pushed_at": "2026-10-16T09:00:00Z",
+        "size": 12,
+        "language": "Python",
+        "default_branch": "main",
+        "visibility": "public"
+      }
+    },
+    "base": {
+      "label": "demo-owner:main",
+      "ref": "main",
+      "sha": "9f8e7d6c5b4a39281706f5e4d3c2b1a098765432",
+      "user": {
+        "login": "demo-owner",
+        "id": 1001,
+        "node_id": "U_demo",
+        "type": "User",
+        "site_admin": false,
+        "avatar_url": "https://avatars.githubusercontent.com/u/1001?v=4",
+        "html_url": "https://github.com/demo-owner"
+      },
+      "repo": {
+        "id": 2002,
+        "node_id": "R_demo",
+        "name": "codelens-demo",
+        "full_name": "demo-owner/codelens-demo",
+        "private": false,
+        "owner": {
+          "login": "demo-owner",
+          "id": 1001,
+          "node_id": "U_demo",
+          "type": "User",
+          "site_admin": false,
+          "avatar_url": "https://avatars.githubusercontent.com/u/1001?v=4",
+          "html_url": "https://github.com/demo-owner"
+        },
+        "html_url": "https://github.com/demo-owner/codelens-demo",
+        "description": "Demo repository for CodeLens",
+        "fork": false,
+        "url": "https://api.github.com/repos/demo-owner/codelens-demo",
+        "created_at": "2026-10-01T09:00:00Z",
+        "updated_at": "2026-10-16T09:00:00Z",
+        "pushed_at": "2026-10-16T09:00:00Z",
+        "size": 12,
+        "language": "Python",
+        "default_branch": "main",
+        "visibility": "public"
+      }
+    },
+    "author_association": "COLLABORATOR",
+    "merged": true,
+    "mergeable": null,
+    "comments": 0,
+    "review_comments": 0,
+    "commits": 1,
+    "additions": 12,
+    "deletions": 3,
+    "changed_files": 2
+  },
+  "repository": {
+    "id": 2002,
+    "node_id": "R_demo",
+    "name": "codelens-demo",
+    "full_name": "demo-owner/codelens-demo",
+    "private": false,
+    "owner": {
+      "login": "demo-owner",
+      "id": 1001,
+      "node_id": "U_demo",
+      "type": "User",
+      "site_admin": false,
+      "avatar_url": "https://avatars.githubusercontent.com/u/1001?v=4",
+      "html_url": "https://github.com/demo-owner"
+    },
+    "html_url": "https://github.com/demo-owner/codelens-demo",
+    "description": "Demo repository for CodeLens",
+    "fork": false,
+    "url": "https://api.github.com/repos/demo-owner/codelens-demo",
+    "created_at": "2026-10-01T09:00:00Z",
+    "updated_at": "2026-10-16T09:00:00Z",
+    "pushed_at": "2026-10-16T09:00:00Z",
+    "size": 12,
+    "language": "Python",
+    "default_branch": "main",
+    "visibility": "public"
+  },
+  "sender": {
+    "login": "demo-contributor",
+    "id": 1002,
+    "type": "User",
+    "site_admin": false
+  },
+  "installation": {
+    "id": 3003,
+    "node_id": "MDIzOkludGVncmF0aW9uSW5zdGFsbGF0aW9uMzAwMw=="
+  }
+}

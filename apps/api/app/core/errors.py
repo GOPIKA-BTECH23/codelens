@@ -60,6 +60,25 @@ class InvalidTokenError(UnauthorizedError):
     default_message = "Invalid credentials"
 
 
+class InvalidSignatureError(UnauthorizedError):
+    """A webhook whose HMAC signature is missing or wrong."""
+
+    code = "invalid_signature"
+    default_message = "Invalid or missing webhook signature"
+
+
+class BadRequestError(AppError):
+    status_code = 400
+    code = "bad_request"
+    default_message = "Bad request"
+
+
+class PayloadTooLargeError(AppError):
+    status_code = 413
+    code = "payload_too_large"
+    default_message = "Request body too large"
+
+
 class RateLimitedError(AppError):
     status_code = 429
     code = "rate_limited"
