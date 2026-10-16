@@ -1,5 +1,6 @@
 """Application settings. One class, validated at startup, so a bad config fails fast."""
 
+from decimal import Decimal
 from functools import lru_cache
 from typing import Annotated, Literal
 
@@ -60,13 +61,27 @@ class Settings(BaseSettings):
     # Shared secret GitHub uses to sign every webhook delivery (X-Hub-Signature-256).
     github_webhook_secret: SecretStr
     # The App's private key: PEM text, base64-encoded PEM, or a path to the .pem file. Only
-    # the worker uses it (M4 makes it required); when set, it is parsed at startup so a bad
+    # the worker uses it (from M5, when it first calls GitHub); when set, it is parsed at startup so a bad
     # key fails here and not at the first review. The JWT issuer is github_oauth_client_id.
     github_app_private_key: SecretStr | None = None
     # PR authors we never review (comma-separated logins in the environment).
     webhook_ignored_pr_authors: Annotated[frozenset[str], NoDecode] = frozenset(
         {"dependabot[bot]", "renovate[bot]"}
     )
+
+    # --- Worker (M4) ---
+    # true: run the job worker as a background task inside the API process (free-tier demos,
+    # decision 3). false: run it as its own process, `python -m app.worker.main`.
+    run_worker_in_api: bool = False
+    # Reviews stop (runs are marked `skipped`) once today's estimated spend reaches this.
+    daily_cost_cap_usd: Decimal = Field(default=Decimal("5"), ge=0)
+    worker_concurrency: int = Field(default=2, ge=1, le=20)  # jobs handled at the same time
+    worker_poll_seconds: float = Field(default=2.0, gt=0)  # idle sleep between empty polls
+    # A `running` job older than this is presumed abandoned and re-queued. It must be longer
+    # than the slowest handler (a big review), or healthy jobs would be run twice.
+    job_visibility_timeout_seconds: int = Field(default=300, ge=30)
+    # On SIGTERM, how long in-flight jobs get to finish before they are released.
+    worker_shutdown_grace_seconds: float = Field(default=20.0, ge=0)
 
     # --- Abuse protection (M2) ---
     # Requests per minute per client IP on /auth/*.
