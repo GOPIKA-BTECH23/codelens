@@ -15,16 +15,26 @@ import contextlib
 import logging
 import random
 import signal
+from collections.abc import AsyncIterator
 from datetime import timedelta
 
+import httpx
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.ai.llm.factory import build_llm, model_name
 from app.config import Settings, get_settings
 from app.core.logging import configure_logging, job_id_var, run_id_var
 from app.db.session import create_engine, create_session_factory
+from app.services.github_app import GitHubApp, load_private_key
 from app.services.jobs import Job, JobQueue, PostgresJobQueue
 from app.worker.errors import PermanentJobError
 from app.worker.handlers import HANDLERS, Handler, HandlerContext
+from app.worker.review import (
+    GitHubReviewPipeline,
+    ReviewConfig,
+    ReviewPipeline,
+    installation_clients,
+)
 
 logger = logging.getLogger("app.worker")
 
@@ -172,10 +182,59 @@ class Worker:
             stop_task.cancel()
 
 
+class WorkerConfigError(RuntimeError):
+    """The worker cannot start with this configuration (message never contains secrets)."""
+
+
+def review_config(settings: Settings) -> ReviewConfig:
+    return ReviewConfig(
+        confidence_threshold=settings.review_confidence_threshold,
+        max_comments=settings.review_max_comments,
+        ignore_patterns=settings.review_ignore_patterns,
+        max_file_changed_lines=settings.review_max_file_changed_lines,
+        no_code_behavior=settings.review_no_code_behavior,
+        chunk_max_tokens=settings.review_chunk_max_tokens,
+        llm_concurrency=settings.review_llm_concurrency,
+    )
+
+
+@contextlib.asynccontextmanager
+async def review_resources(
+    settings: Settings, session_factory: async_sessionmaker[AsyncSession]
+) -> AsyncIterator[ReviewPipeline]:
+    """Build what the review pipeline needs and close it all on exit.
+
+    Fails at startup (not at the first review) when the GitHub App key or the LLM key is
+    missing, or the model has no price.
+    """
+    if settings.github_app_private_key is None:
+        raise WorkerConfigError(
+            "GITHUB_APP_PRIVATE_KEY is required to run the worker (it posts reviews as the App)"
+        )
+    private_key = load_private_key(settings.github_app_private_key.get_secret_value())
+    llm = build_llm(settings)
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(30.0)) as http:
+            app = GitHubApp(
+                http, client_id=settings.github_oauth_client_id, private_key=private_key
+            )
+            logger.info(
+                "review pipeline ready",
+                extra={"llm_provider": llm.name, "llm_model": model_name(settings)},
+            )
+            yield GitHubReviewPipeline(
+                session_factory, llm, review_config(settings), installation_clients(app, http)
+            )
+    finally:
+        await llm.aclose()
+
+
 def build_worker(
     settings: Settings,
     session_factory: async_sessionmaker[AsyncSession],
     queue: JobQueue | None = None,
+    *,
+    review_pipeline: ReviewPipeline | None = None,
 ) -> Worker:
     """Wire a Worker from settings (shared by the standalone process and the API lifespan)."""
     queue = queue or PostgresJobQueue(
@@ -183,7 +242,9 @@ def build_worker(
         visibility_timeout=timedelta(seconds=settings.job_visibility_timeout_seconds),
     )
     ctx = HandlerContext(
-        session_factory=session_factory, daily_cost_cap_usd=settings.daily_cost_cap_usd
+        session_factory=session_factory,
+        daily_cost_cap_usd=settings.daily_cost_cap_usd,
+        review_pipeline=review_pipeline,
     )
     return Worker(
         queue,
@@ -200,7 +261,7 @@ async def main() -> None:
     settings = get_settings()
     configure_logging(settings.log_level)
     engine = create_engine(settings)
-    worker = build_worker(settings, create_session_factory(engine))
+    session_factory = create_session_factory(engine)
 
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
@@ -212,7 +273,9 @@ async def main() -> None:
             # main thread, so hop back onto the loop safely.
             signal.signal(sig, lambda *_: loop.call_soon_threadsafe(stop.set))
     try:
-        await worker.run(stop)
+        async with review_resources(settings, session_factory) as pipeline:
+            worker = build_worker(settings, session_factory, review_pipeline=pipeline)
+            await worker.run(stop)
     finally:
         await engine.dispose()
 
