@@ -15,8 +15,8 @@ from sqlalchemy import delete, func
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import Installation, InstallationMember, Repository, RepositoryAccess, User
-from app.db.models.enums import AccountType, MemberRole
+from app.db.models import InstallationMember, RepositoryAccess, User
+from app.db.models.enums import MemberRole
 from app.services.github_oauth import (
     GitHubInstallation,
     GitHubOAuthClient,
@@ -24,8 +24,7 @@ from app.services.github_oauth import (
     GitHubUser,
     OrgRole,
 )
-
-_ACCOUNT_TYPES = {"User": AccountType.USER, "Organization": AccountType.ORGANIZATION}
+from app.services.github_sync import ACCOUNT_TYPES, upsert_installation, upsert_repository
 
 
 @dataclass(frozen=True)
@@ -62,7 +61,7 @@ async def fetch_login_identity(gh: GitHubOAuthClient, token: str) -> LoginIdenti
     user = await gh.get_user(token)
     grants: list[InstallationGrant] = []
     for installation in await gh.list_installations(token):
-        if installation.account.type not in _ACCOUNT_TYPES or not installation.account.login:
+        if installation.account.type not in ACCOUNT_TYPES or not installation.account.login:
             continue  # enterprise-level installations are out of scope
         org_role = None
         if installation.account.type == "Organization":
@@ -90,11 +89,25 @@ async def apply_login_identity(session: AsyncSession, identity: LoginIdentity) -
     installation_ids: list[uuid.UUID] = []
     repository_ids: list[uuid.UUID] = []
     for grant in identity.grants:
-        installation_id = await _upsert_installation(session, grant.installation)
+        installation_id = await upsert_installation(
+            session,
+            github_installation_id=grant.installation.id,
+            account_login=grant.installation.account.login or "",
+            account_type=ACCOUNT_TYPES[grant.installation.account.type or ""],
+        )
         installation_ids.append(installation_id)
         await _upsert_membership(session, installation_id, user.id, grant.role)
         for repo in grant.repos:
-            repository_ids.append(await _upsert_repository(session, installation_id, repo))
+            repository_ids.append(
+                await upsert_repository(
+                    session,
+                    installation_id=installation_id,
+                    github_repo_id=repo.id,
+                    full_name=repo.full_name,
+                    is_private=repo.private,
+                    default_branch=repo.default_branch,
+                )
+            )
 
     await session.execute(
         delete(InstallationMember).where(
@@ -114,9 +127,8 @@ async def apply_login_identity(session: AsyncSession, identity: LoginIdentity) -
 
 
 # --- upserts -------------------------------------------------------------------------------
-# INSERT ... ON CONFLICT DO UPDATE, keyed on GitHub's stable numeric ids (logins can be
-# renamed; ids cannot). updated_at is set explicitly because SQLAlchemy's onupdate does not
-# fire for the UPDATE half of an upsert.
+# INSERT ... ON CONFLICT DO UPDATE keyed on GitHub's numeric ids; installation and
+# repository upserts live in github_sync.py because webhooks use them too.
 
 
 async def _upsert_user(session: AsyncSession, gh_user: GitHubUser) -> User:
@@ -139,25 +151,6 @@ async def _upsert_user(session: AsyncSession, gh_user: GitHubUser) -> User:
     return (await session.scalars(stmt, execution_options={"populate_existing": True})).one()
 
 
-async def _upsert_installation(session: AsyncSession, gh_inst: GitHubInstallation) -> uuid.UUID:
-    values = {
-        "account_login": gh_inst.account.login,
-        "account_type": _ACCOUNT_TYPES[gh_inst.account.type or ""].value,
-    }
-    # uninstalled_at is deliberately NOT touched: uninstall is webhook-driven (M3), and
-    # GitHub gives a reinstall a new installation id, so ids are never reused.
-    stmt = (
-        insert(Installation)
-        .values(github_installation_id=gh_inst.id, **values)
-        .on_conflict_do_update(
-            index_elements=[Installation.github_installation_id],
-            set_={**values, "updated_at": func.now()},
-        )
-        .returning(Installation.id)
-    )
-    return (await session.execute(stmt)).scalar_one()
-
-
 async def _upsert_membership(
     session: AsyncSession, installation_id: uuid.UUID, user_id: uuid.UUID, role: MemberRole
 ) -> None:
@@ -170,24 +163,3 @@ async def _upsert_membership(
         )
     )
     await session.execute(stmt)
-
-
-async def _upsert_repository(
-    session: AsyncSession, installation_id: uuid.UUID, repo: GitHubRepo
-) -> uuid.UUID:
-    values = {
-        "installation_id": installation_id,
-        "full_name": repo.full_name,
-        "default_branch": repo.default_branch,
-        "is_private": repo.private,
-    }
-    stmt = (
-        insert(Repository)
-        .values(github_repo_id=repo.id, **values)
-        .on_conflict_do_update(
-            index_elements=[Repository.github_repo_id],
-            set_={**values, "updated_at": func.now()},
-        )
-        .returning(Repository.id)
-    )
-    return (await session.execute(stmt)).scalar_one()

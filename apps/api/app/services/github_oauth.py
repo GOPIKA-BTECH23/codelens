@@ -23,10 +23,8 @@ import httpx
 from pydantic import BaseModel
 
 from app.config import Settings
+from app.services.github_common import GITHUB_API, GITHUB_WEB, api_headers
 
-GITHUB_WEB = "https://github.com"
-GITHUB_API = "https://api.github.com"
-GITHUB_API_VERSION = "2026-03-10"
 _PER_PAGE = 100
 # A user with more than 50 pages (5000) of installations or repos is not a realistic case;
 # the cap keeps a misbehaving API from looping us forever.
@@ -168,7 +166,7 @@ class GitHubOAuthClient:
                 f"{GITHUB_API}/applications/{client_id}/token",
                 json={"access_token": token},
                 auth=(client_id, self._settings.github_oauth_client_secret.get_secret_value()),
-                headers=self._api_headers(),
+                headers=api_headers(),
             )
         except httpx.HTTPError as exc:
             logger.warning("user token revocation failed", extra={"error": type(exc).__name__})
@@ -177,16 +175,6 @@ class GitHubOAuthClient:
             logger.warning("user token revocation failed", extra={"status": response.status_code})
 
     # --- helpers -------------------------------------------------------------------------
-
-    @staticmethod
-    def _api_headers(token: str | None = None) -> dict[str, str]:
-        headers = {
-            "Accept": "application/vnd.github+json",
-            "X-GitHub-Api-Version": GITHUB_API_VERSION,
-        }
-        if token:
-            headers["Authorization"] = f"Bearer {token}"
-        return headers
 
     async def _api_get(
         self,
@@ -198,7 +186,7 @@ class GitHubOAuthClient:
     ) -> httpx.Response:
         url = path_or_url if path_or_url.startswith("https://") else f"{GITHUB_API}{path_or_url}"
         try:
-            response = await self._http.get(url, params=params, headers=self._api_headers(token))
+            response = await self._http.get(url, params=params, headers=api_headers(token))
         except httpx.HTTPError as exc:
             raise GitHubOAuthError(f"GET {path_or_url} failed: {type(exc).__name__}") from exc
         if response.status_code != 200 and response.status_code not in allow:

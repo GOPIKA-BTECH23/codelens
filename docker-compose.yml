@@ -41,6 +41,11 @@ services:
       JWT_REFRESH_TTL_DAYS: ${JWT_REFRESH_TTL_DAYS:-7}
       GITHUB_OAUTH_CLIENT_ID: ${GITHUB_OAUTH_CLIENT_ID:?set GITHUB_OAUTH_CLIENT_ID in .env}
       GITHUB_OAUTH_CLIENT_SECRET: ${GITHUB_OAUTH_CLIENT_SECRET:?set GITHUB_OAUTH_CLIENT_SECRET in .env}
+      GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:?set GITHUB_WEBHOOK_SECRET in .env (openssl rand -hex 32)}
+      # Optional until M4. Inside the container a host file path does not exist, so use the
+      # base64 form here (see .env.example).
+      GITHUB_APP_PRIVATE_KEY: ${GITHUB_APP_PRIVATE_KEY:-}
+      WEBHOOK_IGNORED_PR_AUTHORS: ${WEBHOOK_IGNORED_PR_AUTHORS:-dependabot[bot],renovate[bot]}
     ports:
       - '8000:8000'
     volumes:

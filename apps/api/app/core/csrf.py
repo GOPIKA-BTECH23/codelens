@@ -32,8 +32,8 @@ class CsrfMiddleware:
     ) -> None:
         self.app = app
         self.web_origin = web_origin
-        # Endpoints authenticated by something other than cookies (M3: the GitHub webhook,
-        # which is verified by HMAC). Empty in M2.
+        # Endpoints authenticated by something other than cookies: the GitHub webhook
+        # (verified by its HMAC signature, see app/api/webhooks.py).
         self.exempt_paths = exempt_paths
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:

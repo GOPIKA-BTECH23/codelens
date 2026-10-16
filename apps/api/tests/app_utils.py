@@ -17,6 +17,7 @@ WEB_ORIGIN = "http://localhost:5173"
 TEST_JWT_SECRET = "test-only-jwt-secret-0123456789abcdef"
 TEST_CLIENT_ID = "Iv1.testclientid"
 TEST_CLIENT_SECRET = "test-client-secret"
+TEST_WEBHOOK_SECRET = "test-only-webhook-secret-0123456789"
 
 
 def make_settings(**overrides: Any) -> Settings:
@@ -28,6 +29,7 @@ def make_settings(**overrides: Any) -> Settings:
         "jwt_secret": TEST_JWT_SECRET,
         "github_oauth_client_id": TEST_CLIENT_ID,
         "github_oauth_client_secret": TEST_CLIENT_SECRET,
+        "github_webhook_secret": TEST_WEBHOOK_SECRET,
     }
     values.update(overrides)
     return Settings(_env_file=None, **values)
