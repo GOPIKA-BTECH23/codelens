@@ -19,10 +19,21 @@ x-api-env: &api-env
   GITHUB_OAUTH_CLIENT_ID: ${GITHUB_OAUTH_CLIENT_ID:?set GITHUB_OAUTH_CLIENT_ID in .env}
   GITHUB_OAUTH_CLIENT_SECRET: ${GITHUB_OAUTH_CLIENT_SECRET:?set GITHUB_OAUTH_CLIENT_SECRET in .env}
   GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:?set GITHUB_WEBHOOK_SECRET in .env (openssl rand -hex 32)}
-  # Optional until M4. Inside the container a host file path does not exist, so use the
-  # base64 form here (see .env.example).
+  # Required by the worker from M5 (it posts reviews as the App). Inside the container a host
+  # file path does not exist, so use the base64 form here (see .env.example).
   GITHUB_APP_PRIVATE_KEY: ${GITHUB_APP_PRIVATE_KEY:-}
   WEBHOOK_IGNORED_PR_AUTHORS: ${WEBHOOK_IGNORED_PR_AUTHORS:-dependabot[bot],renovate[bot]}
+  # LLM (M5). The worker checks at startup that the chosen provider's key is set.
+  LLM_PROVIDER: ${LLM_PROVIDER:-groq}
+  LLM_MODEL: ${LLM_MODEL:-}
+  GROQ_API_KEY: ${GROQ_API_KEY:-}
+  GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+  LLM_REQUESTS_PER_MINUTE: ${LLM_REQUESTS_PER_MINUTE:-20}
+  # Review policy (M5); see .env.example.
+  REVIEW_CONFIDENCE_THRESHOLD: ${REVIEW_CONFIDENCE_THRESHOLD:-0.6}
+  REVIEW_MAX_COMMENTS: ${REVIEW_MAX_COMMENTS:-15}
+  REVIEW_IGNORE_PATTERNS: ${REVIEW_IGNORE_PATTERNS:-}
+  REVIEW_NO_CODE_BEHAVIOR: ${REVIEW_NO_CODE_BEHAVIOR:-skip}
 
 services:
   postgres:
