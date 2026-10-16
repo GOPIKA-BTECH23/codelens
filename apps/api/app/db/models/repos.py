@@ -110,6 +110,10 @@ class ReviewRun(UuidPkMixin, TimestampMixin, Base):
     latency_ms: Mapped[int | None] = mapped_column(Integer)
     error: Mapped[str | None] = mapped_column(Text)
     prompt_version: Mapped[str | None] = mapped_column(String(50))
+    # M5: the PR head commit the review was computed for (the review's commit_id), and the
+    # id of the review we posted on GitHub (NULL until posted).
+    head_sha: Mapped[str | None] = mapped_column(String(40))
+    github_review_id: Mapped[int | None] = mapped_column(BigInteger)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
@@ -129,6 +133,7 @@ class Finding(UuidPkMixin, TimestampMixin, Base):
     )
     file: Mapped[str] = mapped_column(String(1000))
     line: Mapped[int] = mapped_column(Integer)
+    end_line: Mapped[int | None] = mapped_column(Integer)  # M5: last line of a multi-line finding
     severity: Mapped[str] = mapped_column(String(20))
     category: Mapped[str] = mapped_column(String(50))
     # message and suggestion can quote code, so they are nullable: the retention job sets
