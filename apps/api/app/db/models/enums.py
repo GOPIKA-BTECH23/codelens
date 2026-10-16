@@ -34,6 +34,7 @@ class RunStatus(StrEnum):
     SUCCEEDED = "succeeded"
     FAILED = "failed"
     SUPERSEDED = "superseded"
+    SKIPPED = "skipped"  # deliberately not run (e.g. daily cost cap); see review_runs.error
 
 
 class Severity(StrEnum):
