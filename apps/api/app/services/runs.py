@@ -88,12 +88,18 @@ class ReviewTarget:
     repo_full_name: str
     pr_number: int
     github_installation_id: int
+    settings: dict[str, Any]  # repositories.settings (M6); read with repos.effective_settings
 
 
 async def load_review_target(session: AsyncSession, run_id: uuid.UUID) -> ReviewTarget | None:
     row = (
         await session.execute(
-            select(Repository.full_name, PullRequest.number, Installation.github_installation_id)
+            select(
+                Repository.full_name,
+                PullRequest.number,
+                Installation.github_installation_id,
+                Repository.settings,
+            )
             .select_from(ReviewRun)  # the join chain starts at the run
             .join(PullRequest, PullRequest.id == ReviewRun.pull_request_id)
             .join(Repository, Repository.id == PullRequest.repository_id)
@@ -103,7 +109,7 @@ async def load_review_target(session: AsyncSession, run_id: uuid.UUID) -> Review
     ).one_or_none()
     if row is None:
         return None
-    return ReviewTarget(row.full_name, row.number, row.github_installation_id)
+    return ReviewTarget(row.full_name, row.number, row.github_installation_id, row.settings)
 
 
 async def add_usage(

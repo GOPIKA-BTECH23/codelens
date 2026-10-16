@@ -66,6 +66,7 @@ class DropCounts:
     evidence_mismatch: int = 0
     duplicate: int = 0
     low_confidence: int = 0
+    below_severity: int = 0  # under the repository's severity threshold (M6 settings)
     over_cap: int = 0
 
     @property
@@ -127,7 +128,12 @@ def validate_findings(
 
 
 def select_findings(
-    findings: Iterable[Finding], *, threshold: float, max_comments: int, counts: DropCounts
+    findings: Iterable[Finding],
+    *,
+    threshold: float,
+    max_comments: int,
+    counts: DropCounts,
+    min_severity: Severity = Severity.INFO,
 ) -> list[Finding]:
     best: dict[tuple[str, int, str], Finding] = {}
     for finding in findings:
@@ -139,6 +145,9 @@ def select_findings(
         best[key] = finding
     confident = [f for f in best.values() if f.confidence >= threshold]
     counts.low_confidence += len(best) - len(confident)
+    severe = [f for f in confident if SEVERITY_RANK[f.severity] >= SEVERITY_RANK[min_severity]]
+    counts.below_severity += len(confident) - len(severe)
+    confident = severe
     ranked = sorted(
         confident,
         key=lambda f: (-SEVERITY_RANK[f.severity], -f.confidence, f.file, f.line),
@@ -224,6 +233,10 @@ def summary_notes(s: ReviewSummary) -> list[str]:
         )
     if c.low_confidence:
         notes.append(f"{c.low_confidence} lower-confidence finding(s) are not shown.")
+    if c.below_severity:
+        notes.append(
+            f"{c.below_severity} finding(s) are below this repository's severity threshold."
+        )
     if c.over_cap:
         notes.append(f"{c.over_cap} more finding(s) are not shown (comment limit reached).")
     if s.doc_files:
