@@ -26,7 +26,8 @@ async def test_api_process_runs_jobs_when_enabled_and_stops_cleanly(
     job_id = await enqueue(queue, session_factory, JOB_INDEX_REPO, {"repository_id": "r"})
 
     with browser(create_app(settings)):  # entering runs the lifespan; leaving shuts the worker down
-        await wait_for(job_is(session_factory, job_id, JobStatus.SUCCEEDED))
+        # index_repo is a stub that fails visibly (dead) until M8; dead = the worker ran it.
+        await wait_for(job_is(session_factory, job_id, JobStatus.DEAD))
 
 
 async def test_api_process_leaves_jobs_alone_when_disabled(
