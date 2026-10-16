@@ -1,19 +1,19 @@
 import type { IndexStatus, PullRequestState, RunStatus, Severity } from '../api/types'
 
-export type Tone = 'neutral' | 'good' | 'warn' | 'bad' | 'info'
+export type Tone = 'neutral' | 'accent' | 'success' | 'warning' | 'orange' | 'danger' | 'info'
 
 export const RUN_STATUS: Record<RunStatus, { label: string; tone: Tone }> = {
   queued: { label: 'Queued', tone: 'neutral' },
   running: { label: 'Reviewing…', tone: 'info' },
-  succeeded: { label: 'Reviewed', tone: 'good' },
-  failed: { label: 'Failed', tone: 'bad' },
+  succeeded: { label: 'Reviewed', tone: 'success' },
+  failed: { label: 'Failed', tone: 'danger' },
   superseded: { label: 'Superseded', tone: 'neutral' },
-  skipped: { label: 'Skipped', tone: 'warn' },
+  skipped: { label: 'Skipped', tone: 'warning' },
 }
 
 export const PR_STATE: Record<PullRequestState, { label: string; tone: Tone }> = {
-  open: { label: 'Open', tone: 'good' },
-  merged: { label: 'Merged', tone: 'info' },
+  open: { label: 'Open', tone: 'success' },
+  merged: { label: 'Merged', tone: 'accent' },
   closed: { label: 'Closed', tone: 'neutral' },
 }
 
@@ -28,8 +28,8 @@ export function indexStatusLabel(status: IndexStatus): { label: string; tone: To
     not_indexed: { label: 'Not indexed', tone: 'neutral' },
     queued: { label: 'Index queued', tone: 'info' },
     indexing: { label: 'Indexing…', tone: 'info' },
-    ready: { label: 'Indexed', tone: 'good' },
-    failed: { label: 'Index failed', tone: 'bad' },
+    ready: { label: 'Indexed', tone: 'success' },
+    failed: { label: 'Index failed', tone: 'danger' },
   }
   return map[status]
 }
@@ -37,10 +37,20 @@ export function indexStatusLabel(status: IndexStatus): { label: string; tone: To
 /** Strongest first: the order of the filter buttons and of "worst finding" comparisons. */
 export const SEVERITIES: Severity[] = ['critical', 'high', 'medium', 'low', 'info']
 
+// Five severities, five distinct tones. Each badge also carries its own icon and the word, so
+// severity never depends on telling colours apart.
 export const SEVERITY_TONE: Record<Severity, Tone> = {
-  critical: 'bad',
-  high: 'bad',
-  medium: 'warn',
+  critical: 'danger',
+  high: 'orange',
+  medium: 'warning',
   low: 'info',
   info: 'neutral',
+}
+
+export const SEVERITY_LABEL: Record<Severity, string> = {
+  critical: 'Critical',
+  high: 'High',
+  medium: 'Medium',
+  low: 'Low',
+  info: 'Info',
 }

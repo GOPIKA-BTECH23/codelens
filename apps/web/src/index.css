@@ -1,21 +1,250 @@
 @import 'tailwindcss';
 
-/* Dark mode is a class on <html> (set by ThemeProvider), not the OS media query, so the user
-   can override the system setting with the toggle. */
+/*
+ * CodeLens design tokens.
+ *
+ * Every colour the app uses is a semantic token (canvas, surface, fg, muted, accent, ...),
+ * defined twice below: once for light and once for dark. Components only ever use the token
+ * utilities (`bg-surface`, `text-muted`, `border-line`, ...), so both themes stay consistent
+ * and a palette change happens in one place.
+ *
+ * Contrast (WCAG AA, checked against canvas and surface in both themes):
+ *   fg ~17:1, muted >= 7:1, subtle >= 4.6:1, accent text >= 4.9:1, white on accent-solid 6.3:1.
+ */
+
+/* Dark mode is a class on <html> (set by ThemeProvider), so the toggle can override the OS. */
 @custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  /* Type: Inter (self-hosted, variable) with a system fallback; a system monospace stack. */
+  --font-sans:
+    'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono:
+    ui-monospace, 'SF Mono', 'Cascadia Code', 'JetBrains Mono', Menlo, Consolas, monospace;
+
+  /* Type scale (size / line height). Small, deliberate steps. */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1.125rem;
+  --text-sm: 0.8125rem;
+  --text-sm--line-height: 1.25rem;
+  --text-base: 0.9375rem;
+  --text-base--line-height: 1.5rem;
+  --text-lg: 1.0625rem;
+  --text-lg--line-height: 1.625rem;
+  --text-xl: 1.25rem;
+  --text-xl--line-height: 1.75rem;
+  --text-2xl: 1.5rem;
+  --text-2xl--line-height: 2rem;
+  --text-display: 2.75rem;
+  --text-display--line-height: 1.1;
+
+  /* Radius */
+  --radius-sm: 0.3125rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+
+  /* Page widths */
+  --container-page: 72rem;
+  --container-prose: 40rem;
+
+  /* Surfaces and text */
+  --color-canvas: var(--cl-canvas);
+  --color-surface: var(--cl-surface);
+  --color-surface-2: var(--cl-surface-2);
+  --color-line: var(--cl-line);
+  --color-line-strong: var(--cl-line-strong);
+  --color-fg: var(--cl-fg);
+  --color-muted: var(--cl-muted);
+  --color-subtle: var(--cl-subtle);
+
+  /* The one accent */
+  --color-accent: var(--cl-accent);
+  --color-accent-solid: var(--cl-accent-solid);
+  --color-accent-solid-hover: var(--cl-accent-solid-hover);
+  --color-accent-soft: var(--cl-accent-soft);
+  --color-on-accent: #ffffff;
+  --color-ring: var(--cl-ring);
+
+  /* Tones for badges, alerts and severities: soft background, readable text, border. */
+  --color-success-bg: var(--cl-success-bg);
+  --color-success-fg: var(--cl-success-fg);
+  --color-success-line: var(--cl-success-line);
+  --color-warning-bg: var(--cl-warning-bg);
+  --color-warning-fg: var(--cl-warning-fg);
+  --color-warning-line: var(--cl-warning-line);
+  --color-orange-bg: var(--cl-orange-bg);
+  --color-orange-fg: var(--cl-orange-fg);
+  --color-orange-line: var(--cl-orange-line);
+  --color-danger-bg: var(--cl-danger-bg);
+  --color-danger-fg: var(--cl-danger-fg);
+  --color-danger-line: var(--cl-danger-line);
+  --color-info-bg: var(--cl-info-bg);
+  --color-info-fg: var(--cl-info-fg);
+  --color-info-line: var(--cl-info-line);
+  --color-neutral-bg: var(--cl-neutral-bg);
+  --color-neutral-fg: var(--cl-neutral-fg);
+  --color-neutral-line: var(--cl-neutral-line);
+
+  /* Diff rows */
+  --color-diff-add: var(--cl-diff-add);
+  --color-diff-add-gutter: var(--cl-diff-add-gutter);
+  --color-diff-del: var(--cl-diff-del);
+  --color-diff-del-gutter: var(--cl-diff-del-gutter);
+  --color-diff-hunk: var(--cl-diff-hunk);
+
+  /* Charts (single series = the accent) */
+  --color-chart: var(--cl-chart);
+
+  --shadow-card: var(--cl-shadow-card);
+  --shadow-pop: var(--cl-shadow-pop);
+}
+
+:root {
+  color-scheme: light;
+  --cl-canvas: #f7f7f8;
+  --cl-surface: #ffffff;
+  --cl-surface-2: #f1f1f3;
+  --cl-line: #e4e4e7;
+  --cl-line-strong: #d1d1d6;
+  --cl-fg: #18181b;
+  --cl-muted: #52525b;
+  --cl-subtle: #6b6b73;
+
+  --cl-accent: #4338ca;
+  --cl-accent-solid: #4f46e5;
+  --cl-accent-solid-hover: #4338ca;
+  --cl-accent-soft: #eef0ff;
+  --cl-ring: #4f46e5;
+
+  --cl-success-bg: #ecfdf3;
+  --cl-success-fg: #166534;
+  --cl-success-line: #a7e3bd;
+  --cl-warning-bg: #fffbeb;
+  --cl-warning-fg: #8a4b06;
+  --cl-warning-line: #f4d38a;
+  --cl-orange-bg: #fff4ed;
+  --cl-orange-fg: #9a3412;
+  --cl-orange-line: #fbc8a8;
+  --cl-danger-bg: #fef2f2;
+  --cl-danger-fg: #b42318;
+  --cl-danger-line: #f5b5b0;
+  --cl-info-bg: #eff6ff;
+  --cl-info-fg: #1d4ed8;
+  --cl-info-line: #b6cff8;
+  --cl-neutral-bg: #f1f1f3;
+  --cl-neutral-fg: #3f3f46;
+  --cl-neutral-line: #dcdce1;
+
+  --cl-diff-add: #ecfdf3;
+  --cl-diff-add-gutter: #d3f5e0;
+  --cl-diff-del: #fef2f2;
+  --cl-diff-del-gutter: #fbdcdc;
+  --cl-diff-hunk: #f3f4fb;
+
+  --cl-chart: #4f46e5;
+
+  --cl-shadow-card: 0 1px 2px rgb(16 16 24 / 0.04), 0 1px 1px rgb(16 16 24 / 0.03);
+  --cl-shadow-pop: 0 12px 32px -8px rgb(16 16 24 / 0.18), 0 2px 6px rgb(16 16 24 / 0.06);
+}
+
+.dark {
+  color-scheme: dark;
+  --cl-canvas: #09090b;
+  --cl-surface: #111114;
+  --cl-surface-2: #18181c;
+  --cl-line: #26262b;
+  --cl-line-strong: #34343b;
+  --cl-fg: #f4f4f5;
+  --cl-muted: #a8a8b3;
+  --cl-subtle: #8c8c97;
+
+  --cl-accent: #a5b4fc;
+  --cl-accent-solid: #4f46e5;
+  --cl-accent-solid-hover: #5b53ee;
+  --cl-accent-soft: #1c1b3a;
+  --cl-ring: #818cf8;
+
+  --cl-success-bg: #0c2418;
+  --cl-success-fg: #6ee7a0;
+  --cl-success-line: #1a4a30;
+  --cl-warning-bg: #2a1f06;
+  --cl-warning-fg: #fcd34d;
+  --cl-warning-line: #5a4210;
+  --cl-orange-bg: #2b1609;
+  --cl-orange-fg: #fdba74;
+  --cl-orange-line: #5c3013;
+  --cl-danger-bg: #2c1012;
+  --cl-danger-fg: #fca5a5;
+  --cl-danger-line: #5e2328;
+  --cl-info-bg: #0f1d36;
+  --cl-info-fg: #93c5fd;
+  --cl-info-line: #22406e;
+  --cl-neutral-bg: #1e1e23;
+  --cl-neutral-fg: #d4d4d8;
+  --cl-neutral-line: #33333a;
+
+  --cl-diff-add: #0e2219;
+  --cl-diff-add-gutter: #143024;
+  --cl-diff-del: #2a1214;
+  --cl-diff-del-gutter: #3a181b;
+  --cl-diff-hunk: #15172a;
+
+  --cl-chart: #818cf8;
+
+  --cl-shadow-card: 0 1px 2px rgb(0 0 0 / 0.4);
+  --cl-shadow-pop: 0 16px 40px -8px rgb(0 0 0 / 0.6), 0 2px 6px rgb(0 0 0 / 0.4);
+}
 
 @layer base {
   html {
-    color-scheme: light;
-  }
-  html.dark {
-    color-scheme: dark;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
   body {
-    @apply bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100;
+    @apply bg-canvas font-sans text-base text-fg;
+    font-feature-settings:
+      'cv11' 1,
+      'ss01' 1;
   }
-  /* A visible focus ring for keyboard users on everything interactive. */
-  :where(a, button, input, select, textarea, summary):focus-visible {
-    @apply outline-2 outline-offset-2 outline-blue-600 dark:outline-blue-400;
+  ::selection {
+    background: color-mix(in srgb, var(--cl-accent-solid) 30%, transparent);
+  }
+  /* One visible focus ring for keyboard users, everywhere. */
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 2px solid var(--cl-ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+  code,
+  pre,
+  kbd {
+    @apply font-mono;
+  }
+}
+
+/* Respect "reduce motion": no transitions, no pulsing skeletons, no smooth scrolling. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
