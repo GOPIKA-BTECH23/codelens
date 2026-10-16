@@ -208,13 +208,8 @@ def _severity_line(findings: Sequence[Finding]) -> str:
     return f"{len(findings)} inline {noun}: {', '.join(parts)}."
 
 
-def render_summary(run_id: uuid.UUID, findings: Sequence[Finding], s: ReviewSummary) -> str:
-    lines = [run_marker(run_id), "## CodeLens security review", ""]
-    if s.change_summaries:
-        what = defuse(" ".join(s.change_summaries), _MAX_SUMMARY_CHARS)
-        lines += [f"**What changed:** {what}", ""]
-    lines += [f"**Findings:** {_severity_line(findings)}", ""]
-
+def summary_notes(s: ReviewSummary) -> list[str]:
+    """The "Review notes" bullets: what was reviewed, what was dropped and why."""
     notes = [f"Reviewed {s.files_reviewed} file(s) in {s.chunks_total} part(s)."]
     if s.chunks_failed:
         notes.append(
@@ -239,6 +234,24 @@ def render_summary(run_id: uuid.UUID, findings: Sequence[Finding], s: ReviewSumm
         )
         more = len(s.skipped) - _MAX_SKIPPED_LISTED
         notes.append(f"Skipped: {listed}" + (f" and {more} more." if more > 0 else "."))
+    return notes
+
+
+def stored_summary(s: ReviewSummary) -> dict[str, object]:
+    """What the dashboard shows above the diff (review_runs.summary). Plain text, no markdown:
+    the web app renders it as text."""
+    what = defuse(" ".join(s.change_summaries), _MAX_SUMMARY_CHARS) if s.change_summaries else None
+    return {"what_changed": what, "notes": summary_notes(s)}
+
+
+def render_summary(run_id: uuid.UUID, findings: Sequence[Finding], s: ReviewSummary) -> str:
+    lines = [run_marker(run_id), "## CodeLens security review", ""]
+    if s.change_summaries:
+        what = defuse(" ".join(s.change_summaries), _MAX_SUMMARY_CHARS)
+        lines += [f"**What changed:** {what}", ""]
+    lines += [f"**Findings:** {_severity_line(findings)}", ""]
+
+    notes = summary_notes(s)
     lines += ["<details><summary>Review notes</summary>", ""]
     lines += [f"- {note}" for note in notes]
     lines += ["", "</details>", ""]

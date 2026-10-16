@@ -24,7 +24,7 @@ from app.ai.schemas import AgentOutput, Finding
 from app.db.models.accounts import Installation
 from app.db.models.enums import JobStatus, RunStatus
 from app.db.models.repos import Finding as FindingRow
-from app.db.models.repos import PullRequest, Repository, ReviewRun
+from app.db.models.repos import PullRequest, Repository, ReviewRun, ReviewRunFile
 from app.services import runs
 from app.services.github_app import GitHubApp
 from app.services.jobs import PostgresJobQueue
@@ -193,6 +193,20 @@ async def test_seeded_vulnerable_pr_gets_one_review_with_comments_on_the_right_l
     )
     assert all(r.message and r.confidence == 0.9 for r in rows)
     assert github.token_requests == 1  # one installation token, cached for the whole review
+
+    # M6: the dashboard's summary and the reviewed files' patches are stored with the run.
+    assert run.summary is not None
+    assert (
+        run.summary["what_changed"]
+        == "Adds config, queries, sessions, downloads and image helpers."
+    )
+    assert any("Reviewed" in n for n in run.summary["notes"])
+    async with session_factory() as s:
+        stored = (
+            await s.scalars(select(ReviewRunFile).where(ReviewRunFile.review_run_id == run_id))
+        ).all()
+    assert {f.path for f in stored} == {f.file for f in expected}
+    assert all(f.patch and f.patch.startswith("@@ ") for f in stored)
 
 
 async def test_clean_change_posts_a_no_issues_summary(

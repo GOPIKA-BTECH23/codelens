@@ -27,7 +27,8 @@ from app.ai.schemas import Finding
 from app.db.models.accounts import Installation
 from app.db.models.enums import RunStatus
 from app.db.models.repos import Finding as FindingRow
-from app.db.models.repos import PullRequest, Repository, ReviewRun
+from app.db.models.repos import PullRequest, Repository, ReviewRun, ReviewRunFile
+from app.services.diff import FileDiff, render_patch
 
 MAX_ERROR_LENGTH = 2000
 
@@ -133,11 +134,31 @@ async def add_usage(
 
 
 async def replace_findings(
-    session: AsyncSession, run_id: uuid.UUID, head_sha: str, findings: Sequence[Finding]
+    session: AsyncSession,
+    run_id: uuid.UUID,
+    head_sha: str,
+    findings: Sequence[Finding],
+    *,
+    summary: dict[str, Any] | None = None,
+    files: Sequence[FileDiff] = (),
 ) -> None:
     """Store the findings about to be posted (replacing any from an earlier attempt that
-    never got posted) and the commit they were computed for."""
+    never got posted), the commit they were computed for, and what the dashboard needs to
+    show them: the summary and the reviewed files' patches (replaced the same way)."""
     await session.execute(delete(FindingRow).where(FindingRow.review_run_id == run_id))
+    await session.execute(delete(ReviewRunFile).where(ReviewRunFile.review_run_id == run_id))
+    session.add_all(
+        ReviewRunFile(
+            review_run_id=run_id,
+            path=f.path,
+            old_path=f.old_path,
+            status=f.status.value,
+            additions=f.additions,
+            deletions=f.deletions,
+            patch=render_patch(f) if f.hunks else None,
+        )
+        for f in files
+    )
     session.add_all(
         FindingRow(
             review_run_id=run_id,
@@ -152,7 +173,9 @@ async def replace_findings(
         )
         for f in findings
     )
-    await session.execute(update(ReviewRun).where(ReviewRun.id == run_id).values(head_sha=head_sha))
+    await session.execute(
+        update(ReviewRun).where(ReviewRun.id == run_id).values(head_sha=head_sha, summary=summary)
+    )
     await session.flush()
 
 

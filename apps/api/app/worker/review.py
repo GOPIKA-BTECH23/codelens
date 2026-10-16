@@ -196,7 +196,14 @@ class GitHubReviewPipeline:
 
         # 6. Save what we are about to post.
         async with self._session_factory.begin() as session:
-            await runs.replace_findings(session, run_id, head, selected)
+            await runs.replace_findings(
+                session,
+                run_id,
+                head,
+                selected,
+                summary=review_poster.stored_summary(summary),
+                files=filtered.code_files,
+            )
 
         # 7 + 8. Post, unless a newer push superseded us meanwhile.
         review = review_poster.build_review(run_id, head, selected, summary)
@@ -219,7 +226,9 @@ class GitHubReviewPipeline:
             await self._skip(run_id, reason)
             return
         async with self._session_factory.begin() as session:
-            await runs.replace_findings(session, run_id, head, [])
+            await runs.replace_findings(
+                session, run_id, head, [], summary=review_poster.stored_summary(summary)
+            )
         review = review_poster.build_review(run_id, head, [], summary)
         await self._post_and_succeed(run_id, gh, repo, number, review, started)
 

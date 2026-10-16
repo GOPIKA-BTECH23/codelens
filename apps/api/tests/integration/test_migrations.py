@@ -17,6 +17,7 @@ EXPECTED_TABLES = {
     "installation_members",
     "repositories",
     "pull_requests",
+    "review_run_files",
     "review_runs",
     "findings",
     "code_chunks",
