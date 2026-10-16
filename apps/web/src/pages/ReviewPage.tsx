@@ -1,37 +1,147 @@
-import { useState } from 'react'
-import { Link, useParams } from 'react-router'
-import { useRepo, usePull, useReview, useUpdateFinding } from '../api/queries'
+import {
+  Clock,
+  Coins,
+  Cpu,
+  ExternalLink,
+  GitBranch,
+  Hash,
+  ListFilter,
+  Loader2,
+  ShieldCheck,
+  Tag,
+  Timer,
+  TriangleAlert,
+} from 'lucide-react'
+import { type ReactNode, useState } from 'react'
+import { useParams } from 'react-router'
+import { usePull, useRepo, useReview, useUpdateFinding } from '../api/queries'
 import type { FindingOut, FindingUpdate, ReviewOut, Severity } from '../api/types'
-import { Badge } from '../components/Badge'
+import { PageHeader } from '../components/PageHeader'
 import { DiffView } from '../components/review/DiffView'
 import { FindingCard } from '../components/review/FindingCard'
-import { EmptyState, ErrorState, Loading } from '../components/States'
+import { EmptyState, ErrorState } from '../components/States'
+import {
+  PrStateBadge,
+  RunStatusBadge,
+  SeverityIcon,
+  SeverityBadge,
+} from '../components/StatusBadges'
 import { useToast } from '../components/toast'
+import { Card } from '../components/ui/Card'
+import { Checkbox } from '../components/ui/Field'
+import { PageSkeleton } from '../components/ui/Skeleton'
+import { buttonStyles } from '../components/ui/styles'
 import { partitionByAnchor } from '../lib/diffAnchor'
 import { errorMessage } from '../lib/errors'
 import { formatCost, formatDateTime, formatLatency } from '../lib/format'
-import { PR_STATE, RUN_STATUS, SEVERITIES } from '../lib/labels'
+import { SEVERITIES } from '../lib/labels'
 
-function RunMetadata({ run }: { run: ReviewOut['run'] }) {
-  const items: [string, string][] = [
-    ['Model', run.model ?? '–'],
-    ['Prompt version', run.prompt_version ?? '–'],
-    ['Latency', formatLatency(run.latency_ms)],
+/** Model, prompt, latency, cost, tokens, commit, time: one compact line under the summary. */
+function RunMetaBar({ run }: { run: ReviewOut['run'] }) {
+  const items: { icon: ReactNode; label: string; value: string; mono?: boolean }[] = [
+    { icon: <Cpu />, label: 'Model', value: run.model ?? '–', mono: true },
+    { icon: <Tag />, label: 'Prompt version', value: run.prompt_version ?? '–', mono: true },
+    { icon: <Timer />, label: 'Latency', value: formatLatency(run.latency_ms) },
     // Estimated at list price from a dated table; free-tier usage costs nothing real.
-    ['Estimated cost', formatCost(run.cost_usd)],
-    ['Tokens in / out', `${run.tokens_in ?? '–'} / ${run.tokens_out ?? '–'}`],
-    ['Commit', run.head_sha ? run.head_sha.slice(0, 7) : '–'],
-    ['Reviewed', formatDateTime(run.created_at)],
+    { icon: <Coins />, label: 'Estimated cost', value: formatCost(run.cost_usd) },
+    {
+      icon: <Hash />,
+      label: 'Tokens in / out',
+      value: `${run.tokens_in ?? '–'} / ${run.tokens_out ?? '–'}`,
+    },
+    {
+      icon: <GitBranch />,
+      label: 'Commit',
+      value: run.head_sha ? run.head_sha.slice(0, 7) : '–',
+      mono: true,
+    },
+    { icon: <Clock />, label: 'Reviewed', value: formatDateTime(run.created_at) },
   ]
   return (
-    <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-4">
-      {items.map(([label, value]) => (
-        <div key={label}>
-          <dt className="text-slate-500 dark:text-slate-400">{label}</dt>
-          <dd className="font-medium">{value}</dd>
+    <dl className="grid grid-cols-2 gap-x-6 gap-y-3 border-t border-line bg-surface-2/50 px-5 py-3 sm:grid-cols-4 lg:flex lg:flex-wrap lg:gap-x-8">
+      {items.map((item) => (
+        <div key={item.label} className="min-w-0">
+          <dt className="flex items-center gap-1 text-2xs font-medium tracking-wide text-muted uppercase [&_svg]:size-3">
+            <span aria-hidden="true" className="contents">
+              {item.icon}
+            </span>
+            {item.label}
+          </dt>
+          <dd className={`mt-0.5 truncate text-sm text-fg ${item.mono ? 'font-mono text-xs' : ''}`}>
+            {item.value}
+          </dd>
         </div>
       ))}
     </dl>
+  )
+}
+
+function SummaryCard({ data, open }: { data: ReviewOut; open: FindingOut[] }) {
+  const counts = SEVERITIES.map((s) => [s, open.filter((f) => f.severity === s).length] as const)
+  const inProgress = data.run.status === 'queued' || data.run.status === 'running'
+  return (
+    <section aria-labelledby="summary-heading">
+      <Card className="overflow-hidden">
+        <div className="space-y-4 p-5">
+          <div className="flex flex-wrap items-center gap-3">
+            <ShieldCheck aria-hidden="true" className="size-5 text-accent" />
+            <h2 id="summary-heading" className="text-base font-semibold text-fg">
+              Review summary
+            </h2>
+            <RunStatusBadge status={data.run.status} />
+          </div>
+
+          {inProgress && (
+            <p role="status" className="flex items-center gap-2 text-sm text-muted">
+              <Loader2 aria-hidden="true" className="size-4 motion-safe:animate-spin" />
+              The review is in progress. This page updates by itself.
+            </p>
+          )}
+          {data.run.error && (
+            <p className="flex items-start gap-2 rounded-md border border-warning-line bg-warning-bg px-3 py-2 text-sm text-warning-fg">
+              <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+              {data.run.error}
+            </p>
+          )}
+          {data.summary?.what_changed && (
+            <p className="max-w-3xl text-sm leading-6 text-fg">
+              <span className="font-medium">What changed: </span>
+              {data.summary.what_changed}
+            </p>
+          )}
+
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-medium text-fg">
+              {open.length === 0
+                ? 'No open findings'
+                : `${open.length} open ${open.length === 1 ? 'finding' : 'findings'}`}
+            </span>
+            {counts
+              .filter(([, n]) => n > 0)
+              .map(([severity, n]) => (
+                <span key={severity} className="inline-flex items-center gap-1 text-xs text-muted">
+                  <SeverityBadge severity={severity} />
+                  <span className="tabular-nums">×{n}</span>
+                </span>
+              ))}
+          </div>
+
+          {data.summary && data.summary.notes.length > 0 && (
+            <details className="group text-sm">
+              <summary className="cursor-pointer text-muted select-none hover:text-fg">
+                Review notes ({data.summary.notes.length})
+              </summary>
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-muted">
+                {data.summary.notes.map((note, i) => (
+                  <li key={i}>{note}</li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </div>
+        <RunMetaBar run={data.run} />
+      </Card>
+    </section>
   )
 }
 
@@ -45,7 +155,7 @@ function SeverityFilter({
   onToggle: (severity: Severity) => void
 }) {
   return (
-    <div role="group" aria-label="Filter by severity" className="flex flex-wrap gap-2">
+    <div role="group" aria-label="Filter by severity" className="flex flex-wrap gap-1.5">
       {SEVERITIES.map((severity) => {
         const count = findings.filter((f) => f.severity === severity).length
         return (
@@ -55,8 +165,11 @@ function SeverityFilter({
             aria-pressed={selected.has(severity)}
             disabled={count === 0 && !selected.has(severity)}
             onClick={() => onToggle(severity)}
-            className="rounded-full border border-slate-300 px-3 py-1 text-sm capitalize hover:bg-slate-100 disabled:opacity-40 aria-pressed:border-blue-600 aria-pressed:bg-blue-50 aria-pressed:text-blue-900 dark:border-slate-700 dark:hover:bg-slate-800 dark:aria-pressed:bg-blue-950 dark:aria-pressed:text-blue-100"
+            className="inline-flex h-7 items-center gap-1.5 rounded-full border border-line bg-surface px-3 text-xs text-muted capitalize transition-colors duration-150 hover:border-line-strong hover:text-fg disabled:opacity-40 aria-pressed:border-accent-solid aria-pressed:bg-accent-soft aria-pressed:text-accent [&_svg]:size-3.5"
           >
+            <span aria-hidden="true" className="contents">
+              <SeverityIcon severity={severity} />
+            </span>
             {severity} ({count})
           </button>
         )
@@ -77,7 +190,7 @@ export function ReviewPage() {
   const [severities, setSeverities] = useState<Set<Severity>>(new Set())
   const [showDismissed, setShowDismissed] = useState(false)
 
-  if (pull.isPending || review.isPending) return <Loading label="Loading review…" />
+  if (pull.isPending || review.isPending) return <PageSkeleton label="Loading review…" />
   if (pull.isError) return <ErrorState error={pull.error} onRetry={() => void pull.refetch()} />
   if (review.isError)
     return <ErrorState error={review.error} onRetry={() => void review.refetch()} />
@@ -93,86 +206,73 @@ export function ReviewPage() {
     })
 
   const data = review.data
-  const dismissedCount = data?.findings.filter((f) => f.dismissed).length ?? 0
-  const visible = (data?.findings ?? []).filter(
+  const findings = data?.findings ?? []
+  const open = findings.filter((f) => !f.dismissed)
+  const dismissedCount = findings.length - open.length
+  const visible = findings.filter(
     (f) => (showDismissed || !f.dismissed) && (severities.size === 0 || severities.has(f.severity)),
   )
   const { anchored, unanchored } = partitionByAnchor(data?.files ?? [], visible)
+  const repoName = repo.data?.full_name
 
   return (
     <div>
-      <p className="text-sm">
-        <Link
-          to={repo.data ? `/repos/${repo.data.id}` : '/dashboard'}
-          className="text-blue-700 hover:underline dark:text-blue-300"
-        >
-          ← {repo.data?.full_name ?? 'Dashboard'}
-        </Link>
-      </p>
-      <div className="mt-2 flex flex-wrap items-center gap-3">
-        <h1 className="text-2xl font-bold">
-          #{pull.data.number} {pull.data.title}
-        </h1>
-        <Badge tone={PR_STATE[pull.data.state].tone}>{PR_STATE[pull.data.state].label}</Badge>
-      </div>
-      <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">by {pull.data.author_login}</p>
+      <PageHeader
+        crumbs={[
+          { label: 'Dashboard', to: '/dashboard' },
+          ...(repo.data ? [{ label: repo.data.full_name, to: `/repos/${repo.data.id}` }] : []),
+          { label: `#${pull.data.number}` },
+        ]}
+        title={
+          <>
+            <span className="font-normal text-muted">#{pull.data.number}</span> {pull.data.title}
+          </>
+        }
+        badges={<PrStateBadge state={pull.data.state} />}
+        meta={`by ${pull.data.author_login}`}
+        actions={
+          repoName && (
+            <a
+              href={`https://github.com/${repoName}/pull/${pull.data.number}`}
+              className={buttonStyles()}
+            >
+              View on GitHub
+              <ExternalLink aria-hidden="true" />
+            </a>
+          )
+        }
+      />
 
       {!data ? (
-        <div className="mt-6">
-          <EmptyState title="Not reviewed yet">
-            CodeLens reviews a pull request when it is opened or updated. The result appears here.
-          </EmptyState>
-        </div>
+        <EmptyState
+          title="Not reviewed yet"
+          icon={<ShieldCheck />}
+          action={
+            repoName && (
+              <a
+                href={`https://github.com/${repoName}/pull/${pull.data.number}`}
+                className={buttonStyles()}
+              >
+                Open the pull request on GitHub
+                <ExternalLink aria-hidden="true" />
+              </a>
+            )
+          }
+        >
+          CodeLens reviews a pull request when it is opened or updated. The result appears here.
+        </EmptyState>
       ) : (
-        <>
-          <section
-            aria-labelledby="summary-heading"
-            className="mt-6 rounded border border-slate-200 p-4 dark:border-slate-800"
-          >
-            <div className="flex flex-wrap items-center gap-3">
-              <h2 id="summary-heading" className="font-semibold">
-                Review summary
-              </h2>
-              <Badge tone={RUN_STATUS[data.run.status].tone}>
-                {RUN_STATUS[data.run.status].label}
-              </Badge>
-            </div>
-            {(data.run.status === 'queued' || data.run.status === 'running') && (
-              <p role="status" className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-                The review is in progress. This page updates by itself.
-              </p>
-            )}
-            {data.run.error && (
-              <p className="mt-2 text-sm text-amber-800 dark:text-amber-300">{data.run.error}</p>
-            )}
-            {data.summary?.what_changed && (
-              <p className="mt-3">
-                <span className="font-medium">What changed: </span>
-                {data.summary.what_changed}
-              </p>
-            )}
-            {data.summary && data.summary.notes.length > 0 && (
-              <details className="mt-2 text-sm">
-                <summary className="cursor-pointer">Review notes</summary>
-                <ul className="mt-1 list-disc pl-5">
-                  {data.summary.notes.map((note, i) => (
-                    <li key={i}>{note}</li>
-                  ))}
-                </ul>
-              </details>
-            )}
-            <RunMetadata run={data.run} />
-          </section>
+        <div className="space-y-8">
+          <SummaryCard data={data} open={open} />
 
-          <section aria-labelledby="findings-heading" className="mt-8">
+          <section aria-labelledby="findings-heading">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 id="findings-heading" className="font-semibold">
-                Findings ({data.findings.length - dismissedCount})
+              <h2 id="findings-heading" className="text-base font-semibold text-fg">
+                Findings ({open.length})
               </h2>
               {dismissedCount > 0 && (
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
+                <label className="flex items-center gap-2 text-sm text-muted">
+                  <Checkbox
                     checked={showDismissed}
                     onChange={(e) => setShowDismissed(e.target.checked)}
                   />
@@ -180,34 +280,39 @@ export function ReviewPage() {
                 </label>
               )}
             </div>
-            <div className="mt-3">
-              <SeverityFilter
-                findings={data.findings.filter((f) => showDismissed || !f.dismissed)}
-                selected={severities}
-                onToggle={toggleSeverity}
-              />
-            </div>
+            {findings.length > 0 && (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <ListFilter aria-hidden="true" className="size-4 text-muted" />
+                <SeverityFilter
+                  findings={findings.filter((f) => showDismissed || !f.dismissed)}
+                  selected={severities}
+                  onToggle={toggleSeverity}
+                />
+              </div>
+            )}
 
-            {data.findings.length === 0 ? (
+            {findings.length === 0 ? (
               <div className="mt-4">
-                <EmptyState title="No findings">
+                <EmptyState title="No findings" icon={<ShieldCheck />}>
                   {data.run.status === 'succeeded'
                     ? 'The review found no issues in the reviewed changes.'
                     : 'There are no findings for this run.'}
                 </EmptyState>
               </div>
             ) : visible.length === 0 ? (
-              <p className="mt-4 text-sm text-slate-600 dark:text-slate-400">
-                No findings match the current filter.
+              <p className="mt-4 text-sm text-muted">No findings match the current filter.</p>
+            ) : (
+              <p className="mt-3 text-xs text-muted">
+                Findings are shown in the diff below, under the line they point at.
               </p>
-            ) : null}
+            )}
 
             {unanchored.length > 0 && (
               <div className="mt-4 space-y-3">
-                <h3 className="text-sm font-medium">Findings without a diff location</h3>
+                <h3 className="text-sm font-medium text-fg">Findings without a diff location</h3>
                 {unanchored.map((finding) => (
                   <div key={finding.id}>
-                    <p className="mb-1 font-mono text-xs text-slate-600 dark:text-slate-400">
+                    <p className="mb-1 font-mono text-xs text-muted">
                       {finding.file}:{finding.line}
                     </p>
                     <FindingCard
@@ -220,12 +325,12 @@ export function ReviewPage() {
             )}
           </section>
 
-          <section aria-labelledby="diff-heading" className="mt-8">
-            <h2 id="diff-heading" className="font-semibold">
+          <section aria-labelledby="diff-heading">
+            <h2 id="diff-heading" className="text-base font-semibold text-fg">
               Changes
             </h2>
             {data.files.length === 0 ? (
-              <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+              <p className="mt-2 text-sm text-muted">
                 The diff was not stored for this review, so only the findings are shown.
               </p>
             ) : (
@@ -241,7 +346,7 @@ export function ReviewPage() {
               </div>
             )}
           </section>
-        </>
+        </div>
       )}
     </div>
   )

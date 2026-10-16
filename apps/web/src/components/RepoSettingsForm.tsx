@@ -1,10 +1,13 @@
+import { Save } from 'lucide-react'
 import { useState } from 'react'
 import { useUpdateSettings } from '../api/queries'
 import type { RepoSettings, Severity } from '../api/types'
 import { errorMessage } from '../lib/errors'
 import { parseIgnorePaths } from '../lib/ignorePaths'
-import { SEVERITIES } from '../lib/labels'
+import { SEVERITIES, SEVERITY_LABEL } from '../lib/labels'
 import { useToast } from './toast'
+import { Button } from './ui/Button'
+import { Checkbox, Field, Select, Textarea } from './ui/Field'
 
 interface Props {
   repoId: string
@@ -37,54 +40,59 @@ export function RepoSettingsForm({ repoId, settings }: Props) {
   }
 
   return (
-    <form onSubmit={submit} className="mt-2 max-w-xl space-y-4">
-      <label className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          checked={securityOn}
-          onChange={(e) => setSecurityOn(e.target.checked)}
-        />
-        Security agent enabled
-      </label>
+    <form onSubmit={submit} className="space-y-5">
+      <div>
+        <label className="flex items-start gap-2.5 text-sm text-fg">
+          <Checkbox
+            checked={securityOn}
+            onChange={(e) => setSecurityOn(e.target.checked)}
+            className="mt-0.5"
+          />
+          Security agent enabled
+        </label>
+        <p className="mt-1 pl-6.5 text-xs text-muted">When off, pull requests are not reviewed.</p>
+      </div>
 
-      <label className="block">
-        <span className="block text-sm font-medium">Minimum severity to post</span>
-        <select
+      <Field label="Minimum severity to post" hint="Lower findings are hidden and counted.">
+        <Select
           value={threshold}
           onChange={(e) => setThreshold(e.target.value as Severity)}
-          className="mt-1 rounded border border-slate-300 bg-transparent px-2 py-1.5 capitalize dark:border-slate-700 dark:bg-slate-950"
+          className="w-full"
         >
           {[...SEVERITIES].reverse().map((s) => (
             <option key={s} value={s}>
-              {s}
+              {SEVERITY_LABEL[s]}
             </option>
           ))}
-        </select>
-      </label>
+        </Select>
+      </Field>
 
-      <label className="block">
-        <span className="block text-sm font-medium">Ignore paths (one glob per line)</span>
-        <textarea
-          value={ignoreText}
-          onChange={(e) => setIgnoreText(e.target.value)}
-          rows={4}
-          placeholder={'vendor/**\n**/*.generated.ts'}
-          className="mt-1 w-full rounded border border-slate-300 bg-transparent px-2 py-1.5 font-mono text-sm dark:border-slate-700"
-        />
+      <div>
+        <Field label="Ignore paths (one glob per line)">
+          <Textarea
+            value={ignoreText}
+            onChange={(e) => setIgnoreText(e.target.value)}
+            rows={4}
+            placeholder={'vendor/**\n**/*.generated.ts'}
+            className="w-full font-mono text-xs"
+          />
+        </Field>
         {tooMany && (
-          <span role="alert" className="text-sm text-red-700 dark:text-red-300">
+          <p role="alert" className="mt-1 text-xs text-danger-fg">
             At most 50 patterns.
-          </span>
+          </p>
         )}
-      </label>
+      </div>
 
-      <button
+      <Button
         type="submit"
+        variant="primary"
         disabled={save.isPending || tooMany}
-        className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-300"
+        icon={<Save />}
+        className="w-full"
       >
         {save.isPending ? 'Saving…' : 'Save settings'}
-      </button>
+      </Button>
     </form>
   )
 }
