@@ -20,9 +20,11 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
 
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.db.models.enums import RunStatus
+from app.db.models import Repository
+from app.db.models.enums import IndexStatus, RunStatus
 from app.services import cost_guard, runs
 from app.services.jobs import Job
 from app.services.webhooks import JOB_INDEX_REPO, JOB_REVIEW_PR
@@ -120,11 +122,22 @@ async def _perform_review(ctx: HandlerContext, run_id: uuid.UUID, head_sha: str 
 
 
 async def index_repo(job: Job, ctx: HandlerContext) -> None:
-    """Stub: the indexer arrives in M8. Succeeds so push webhooks do not pile up as dead jobs."""
-    logger.warning(
-        "index_repo is not implemented yet (M8): nothing was indexed",
-        extra={"repository_id": job.payload.get("repository_id")},
-    )
+    """Stub until M8: fails VISIBLY instead of pretending to index. The repository goes to
+    `failed` (a push webhook or the dashboard had set it to `queued`, which would otherwise
+    never change) and the job goes `dead` with the reason in `last_error`."""
+    raw = job.payload.get("repository_id")
+    try:
+        repository_id = uuid.UUID(str(raw))
+    except ValueError:
+        repository_id = None
+    if repository_id is not None:
+        async with ctx.session_factory.begin() as session:
+            await session.execute(
+                update(Repository)
+                .where(Repository.id == repository_id)
+                .values(index_status=IndexStatus.FAILED)
+            )
+    raise PermanentJobError("indexing is not available yet (arrives in M8); nothing was indexed")
 
 
 HANDLERS: dict[str, Handler] = {

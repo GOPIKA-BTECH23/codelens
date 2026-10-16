@@ -7,7 +7,6 @@ and the FakeLLM, is tested in test_review_pipeline.py.
 
 import asyncio
 import contextlib
-import logging
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from datetime import timedelta
@@ -21,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.core.logging import job_id_var
 from app.db.models.accounts import Installation
 from app.db.models.code import Job as JobRow
-from app.db.models.enums import JobStatus, RunStatus
+from app.db.models.enums import IndexStatus, JobStatus, RunStatus
 from app.db.models.repos import PullRequest, Repository, ReviewRun
 from app.services import runs as runs_service
 from app.services.jobs import Job, PostgresJobQueue
@@ -275,15 +274,33 @@ async def test_purge_installation_is_not_registered_so_it_cannot_look_done(
     assert "no handler registered" in (await job_row(session_factory, job_id)).last_error  # type: ignore[operator]
 
 
-async def test_index_repo_stub_logs_not_implemented_and_succeeds(
-    session_factory: Factory, queue: PostgresJobQueue, caplog: pytest.LogCaptureFixture
+async def test_index_repo_stub_fails_visibly_and_marks_the_repo_failed(
+    session_factory: Factory, queue: PostgresJobQueue
 ) -> None:
-    caplog.set_level(logging.INFO)
-    job_id = await enqueue(queue, session_factory, JOB_INDEX_REPO, {"repository_id": "r"})
-    async with running(make_worker(session_factory, queue)):
-        await wait_for(job_is(session_factory, job_id, JobStatus.SUCCEEDED))
+    async with session_factory.begin() as session:
+        inst = Installation(github_installation_id=9, account_login="o", account_type="user")
+        session.add(inst)
+        await session.flush()
+        repo = Repository(
+            installation_id=inst.id,
+            github_repo_id=9,
+            full_name="o/r",
+            index_status=IndexStatus.QUEUED,
+        )
+        session.add(repo)
+        await session.flush()
+        repo_id = repo.id
 
-    assert "index_repo is not implemented" in caplog.text
+    job_id = await enqueue(queue, session_factory, JOB_INDEX_REPO, {"repository_id": str(repo_id)})
+    async with running(make_worker(session_factory, queue)):
+        await wait_for(job_is(session_factory, job_id, JobStatus.DEAD))
+
+    assert "not available yet" in (await job_row(session_factory, job_id)).last_error  # type: ignore[operator]
+    async with session_factory() as session:
+        assert (
+            await session.scalar(select(Repository.index_status).where(Repository.id == repo_id))
+            == IndexStatus.FAILED
+        )
 
 
 async def test_handler_sees_the_job_id_for_log_correlation(
