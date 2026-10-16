@@ -1,4 +1,8 @@
+import { RotateCw } from 'lucide-react'
 import { Navigate, Outlet } from 'react-router'
+import { Loading } from '../components/States'
+import { Button } from '../components/ui/Button'
+import { Logo } from '../components/ui/Logo'
 import { useAuth } from './context'
 
 /**
@@ -12,18 +16,27 @@ export function ProtectedRoute() {
 
   if (auth.status === 'loading') {
     return (
-      <p role="status" className="p-8 text-gray-600">
-        Loading your session…
-      </p>
+      <div className="flex min-h-screen items-center justify-center">
+        <Loading label="Loading your session…" />
+      </div>
     )
   }
   if (auth.status === 'error') {
     return (
-      <div role="alert" className="mx-auto max-w-xl p-8">
-        <p className="text-red-700">Could not reach the API: {auth.error?.message}</p>
-        <button type="button" onClick={auth.retry} className="mt-4 rounded border px-3 py-1">
-          Try again
-        </button>
+      <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-4 px-4">
+        <Logo />
+        <div
+          role="alert"
+          className="rounded-lg border border-danger-line bg-danger-bg p-4 text-sm text-danger-fg"
+        >
+          <p className="font-medium">Could not reach the CodeLens API</p>
+          <p className="mt-0.5">{auth.error?.message}</p>
+        </div>
+        <div>
+          <Button onClick={auth.retry} icon={<RotateCw />}>
+            Try again
+          </Button>
+        </div>
       </div>
     )
   }

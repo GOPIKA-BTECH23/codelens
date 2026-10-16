@@ -85,7 +85,9 @@ describe('auth flow in the UI', () => {
     })
     renderApp('/dashboard')
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Sign out' }))
+    // Sign out lives in the account menu: open it, then sign out.
+    await userEvent.click(await screen.findByRole('button', { name: /Account menu for alice/ }))
+    await userEvent.click(screen.getByRole('button', { name: 'Sign out' }))
 
     expect(await screen.findByRole('link', { name: 'Sign in with GitHub' })).toBeInTheDocument()
     expect(callsTo(fetchSpy, 'POST /api/auth/logout')).toBe(1)
