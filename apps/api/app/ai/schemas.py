@@ -60,7 +60,8 @@ class Finding(BaseModel):
     evidence: str = Field(
         min_length=1,
         max_length=500,
-        description="The offending code copied EXACTLY from the cited line(s) of the diff.",
+        description="The offending code copied exactly from the cited line(s), without the "
+        "line number and the +/- marker.",
     )
 
     @field_validator("category")

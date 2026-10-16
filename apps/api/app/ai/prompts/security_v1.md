@@ -35,7 +35,8 @@ Each file starts with `### File: <path>`. Each line has a number column, a marke
 - Report problems in ADDED lines (`+`). Use unchanged lines only as context; do not report
   issues that exist only in unchanged code.
 - `file` must be the path exactly as written after `### File:`.
-- `evidence` must be code copied exactly from the cited line(s), not paraphrased. Software
+- `evidence` must be code copied exactly from the cited line(s), not paraphrased, WITHOUT
+  the number column and the `+`/`-` marker (for line 42 above: `new_code()`). Software
   checks that it appears there; findings whose evidence does not match are discarded.
 
 # What to look for

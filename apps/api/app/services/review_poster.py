@@ -41,6 +41,11 @@ SEVERITY_RANK = {
     Severity.INFO: 0,
 }
 _MENTION = re.compile(r"@(?=[A-Za-z0-9])")
+# What render_file puts before the code ("    11 + "). Models often copy it into `evidence`
+# along with the code; we strip it before matching. Stripping only shortens the evidence, so
+# it can never make invented code match.
+_RENDER_PREFIX = re.compile(r"^\s*\d+ [+\- ] ")
+_DIFF_MARKER = re.compile(r"^[+-](?=\s)")
 _MAX_SKIPPED_LISTED = 20
 _MAX_SUMMARY_CHARS = 1500
 
@@ -75,13 +80,17 @@ def _normalise(text: str) -> str:
     return " ".join(text.split())
 
 
+def _evidence_line(text: str) -> str:
+    return _normalise(_DIFF_MARKER.sub("", _RENDER_PREFIX.sub("", text)))
+
+
 def evidence_matches(finding: Finding, file: FileDiff) -> bool:
     """Every non-blank line of the evidence occurs in the text of the cited lines."""
     right = file.right_text()
     last = finding.end_line or finding.line
     cited = _normalise(" ".join(right.get(n, "") for n in range(finding.line, last + 1)))
-    wanted = [_normalise(part) for part in finding.evidence.splitlines() if part.strip()]
-    return bool(wanted) and all(part in cited for part in wanted)
+    wanted = [_evidence_line(part) for part in finding.evidence.splitlines() if part.strip()]
+    return bool(wanted) and all(part and part in cited for part in wanted)
 
 
 def validate_findings(

@@ -103,6 +103,30 @@ def test_evidence_matching_ignores_whitespace_and_accepts_multi_line_ranges(
     assert kept == [multi]
 
 
+@pytest.mark.parametrize(
+    "evidence",
+    [
+        # Seen from openai/gpt-oss-120b on 2026-10-17: the rendered number column and marker
+        # copied along with the code.
+        "9 +     query = \"SELECT id, email FROM users WHERE username = '\" + username + \"'\"",
+        "     9 + query = \"SELECT id, email FROM users WHERE username = '\"",
+        "+    query = \"SELECT id, email FROM users",
+    ],
+)
+def test_evidence_copied_with_the_rendered_prefix_still_matches(
+    files: list[FileDiff], evidence: str
+) -> None:
+    kept, _ = validate([finding(evidence=evidence)], files)
+    assert len(kept) == 1
+
+
+def test_stripping_the_prefix_cannot_make_invented_code_match(files: list[FileDiff]) -> None:
+    kept, counts = validate([finding(evidence="9 + os.system(user_input)")], files)
+    assert kept == [] and counts.evidence_mismatch == 1
+    kept, counts = validate([finding(evidence="9 + ")], files)  # nothing left after stripping
+    assert kept == [] and counts.evidence_mismatch == 1
+
+
 def test_a_range_must_stay_inside_one_hunk() -> None:
     files = load_case("hardcoded_secret").files
     kept, counts = validate(
