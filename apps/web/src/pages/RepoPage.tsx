@@ -4,6 +4,7 @@ import { PAGE_SIZE, usePulls, useRepo } from '../api/queries'
 import type { PullOut, PullRequestState } from '../api/types'
 import { Badge } from '../components/Badge'
 import { Pagination } from '../components/Pagination'
+import { RepoSettingsForm } from '../components/RepoSettingsForm'
 import { EmptyState, ErrorState, Loading } from '../components/States'
 import { timeAgo } from '../lib/format'
 import { PR_STATE, RUN_STATUS, indexStatusLabel } from '../lib/labels'
@@ -67,6 +68,19 @@ export function RepoPage() {
       <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
         Default branch <code>{repo.data.default_branch}</code> · your role: {repo.data.role}
       </p>
+
+      {repo.data.role !== 'member' && (
+        <section aria-labelledby="settings-heading" className="mt-8">
+          <h2 id="settings-heading" className="font-semibold">
+            Review settings
+          </h2>
+          <RepoSettingsForm
+            key={JSON.stringify(repo.data.settings)}
+            repoId={repoId}
+            settings={repo.data.settings}
+          />
+        </section>
+      )}
 
       <section aria-labelledby="pulls-heading" className="mt-8">
         <div className="flex flex-wrap items-center justify-between gap-3">

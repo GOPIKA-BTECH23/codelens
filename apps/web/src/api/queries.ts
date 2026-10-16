@@ -60,8 +60,12 @@ export function useReview(pullId: string) {
   })
 }
 
-export function useUsage(from: string, to: string) {
-  return useQuery({ queryKey: keys.usage(from, to), queryFn: () => api.usage({ from, to }) })
+export function useUsage(from: string, to: string, enabled = true) {
+  return useQuery({
+    queryKey: keys.usage(from, to),
+    queryFn: () => api.usage({ from, to }),
+    enabled,
+  })
 }
 
 export function useRequestIndex(repoId: string) {
