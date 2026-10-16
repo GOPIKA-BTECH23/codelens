@@ -61,8 +61,9 @@ class Settings(BaseSettings):
     # Shared secret GitHub uses to sign every webhook delivery (X-Hub-Signature-256).
     github_webhook_secret: SecretStr
     # The App's private key: PEM text, base64-encoded PEM, or a path to the .pem file. Only
-    # the worker uses it (from M5, when it first calls GitHub); when set, it is parsed at startup so a bad
-    # key fails here and not at the first review. The JWT issuer is github_oauth_client_id.
+    # the worker uses it (from M5, when it first calls GitHub); when set, it is parsed at
+    # startup so a bad key fails here and not at the first review. The JWT issuer is
+    # github_oauth_client_id.
     github_app_private_key: SecretStr | None = None
     # PR authors we never review (comma-separated logins in the environment).
     webhook_ignored_pr_authors: Annotated[frozenset[str], NoDecode] = frozenset(
