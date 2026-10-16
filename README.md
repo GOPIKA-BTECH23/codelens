@@ -47,6 +47,17 @@ ENVIRONMENT=development uv run python -m scripts.seed   # optional: fake dev dat
 
 If port 5432 is already used on your machine, set `POSTGRES_PORT` (for example `54329`) in the root `.env`, restart Postgres (`docker compose up -d postgres`), and use the same port in that file's `DATABASE_URL`.
 
+### The worker
+
+`docker compose up` also starts a `worker` service (`python -m app.worker.main`) that claims jobs from the Postgres queue. Follow it with `docker compose logs -f worker`; every line carries the `job_id` (and `run_id` for reviews).
+
+**M4 note:** the `review_pr` and `index_repo` handlers are stubs. A PR moves `queued → running → succeeded`, but **no review is performed** (the run's `model` column says `m4-stub-no-review`); the real pipeline arrives in M5. Uninstall `purge_installation` jobs have no handler yet and end up `dead` on purpose ([ADR 0004](docs/adr/0004-worker-deployment-modes.md)).
+
+| Mode | How | Good for | Trade-offs |
+| ---- | --- | -------- | ---------- |
+| Separate process | `python -m app.worker.main` or the compose `worker` service | local dev, any paid host | API and worker restart, scale and fail independently; needs a second process (Render's free tier has no free worker) |
+| In the API process | `RUN_WORKER_IN_API=true` | free-tier demo with one service | shares RAM (512 MB) and the event loop with web traffic; a deploy or sleep stops both; cannot scale them apart |
+
 ### Receiving GitHub webhooks locally
 
 GitHub must reach `POST /webhooks/github` on the API (port **8000**, not the web app). Use [ngrok](https://ngrok.com/) (a free account includes one dev domain):
@@ -77,7 +88,7 @@ cd apps/web && npm ci && npm run lint && npm run typecheck && npm test && npm ru
 - [x] M1 Database layer
 - [x] M2 Authentication, sessions and RBAC
 - [x] M3 GitHub App integration and webhook intake
-- [ ] M4 Worker and job processing
+- [x] M4 Worker and job processing
 - [ ] M5 LLM layer and the first agent
 - [ ] M6 Frontend dashboard and review pages
 - [ ] M7 Deploy the MVP

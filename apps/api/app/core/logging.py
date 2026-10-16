@@ -9,6 +9,10 @@ from datetime import UTC, datetime
 # Set by the request-ID middleware. Contextvars follow the request through awaits, so any
 # log line written while handling it picks up the ID without passing it around.
 request_id_var: ContextVar[str | None] = ContextVar("request_id", default=None)
+# Same idea for the worker (M4): set while a job runs, so every line it writes, including
+# those from services it calls, carries the job ID and (for review jobs) the run ID.
+job_id_var: ContextVar[str | None] = ContextVar("job_id", default=None)
+run_id_var: ContextVar[str | None] = ContextVar("run_id", default=None)
 
 # Attributes every LogRecord has. Anything else was passed via `extra=` and is emitted as a field.
 _STANDARD_ATTRS = frozenset(logging.makeLogRecord({}).__dict__) | {"message", "asctime"}
@@ -27,6 +31,10 @@ class JsonFormatter(logging.Formatter):
         request_id = request_id_var.get()
         if request_id:
             payload["request_id"] = request_id
+        for field, var in (("job_id", job_id_var), ("run_id", run_id_var)):
+            context_value = var.get()
+            if context_value:
+                payload[field] = context_value
         for key, value in record.__dict__.items():
             if key not in _STANDARD_ATTRS:
                 payload[key] = value

@@ -150,7 +150,7 @@ All schema changes go through Alembic migrations. Never edit the DB by hand.
 
 `DATABASE_URL`, `JWT_SECRET`, `JWT_ACCESS_TTL_MINUTES`, `JWT_REFRESH_TTL_DAYS`, `WEB_ORIGIN`, `API_ORIGIN`, `GITHUB_APP_PRIVATE_KEY` (PEM, base64 or path), `GITHUB_WEBHOOK_SECRET`, `WEBHOOK_IGNORED_PR_AUTHORS` (optional, comma-separated, default `dependabot[bot],renovate[bot]`), `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET`, `LLM_PROVIDER`, `EMBEDDING_PROVIDER` (gemini/fake), `GEMINI_API_KEY`, `GROQ_API_KEY`, `EMBEDDING_MODEL`, `EMBEDDING_DIM`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST`, `SENTRY_DSN`, `RUN_WORKER_IN_API` (true/false), `DAILY_COST_CAP_USD`, `LOG_LEVEL`, `ENVIRONMENT` (development/test/production; defaults to production; the seed script needs development; cookies are `Secure` unless development/test), `AUTH_RATE_LIMIT_PER_MINUTE` (optional, default 20).
 
-Required from M2: `JWT_SECRET` (32+ characters, placeholders rejected), `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET`. The GitHub App callback URL is `WEB_ORIGIN/api/auth/github/callback` (ADR 0002). Required from M3: `GITHUB_WEBHOOK_SECRET` (16+ characters, placeholders rejected). `GITHUB_APP_PRIVATE_KEY` is optional until M4 but parsed at startup when set. There is no `GITHUB_APP_ID`: the App JWT's issuer is `GITHUB_OAUTH_CLIENT_ID` (the App's client ID, GitHub's recommendation; ADR 0003).
+Required from M2: `JWT_SECRET` (32+ characters, placeholders rejected), `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET`. The GitHub App callback URL is `WEB_ORIGIN/api/auth/github/callback` (ADR 0002). Required from M3: `GITHUB_WEBHOOK_SECRET` (16+ characters, placeholders rejected). `GITHUB_APP_PRIVATE_KEY` is optional until M5 (the M4 worker stubs never call GitHub) but parsed at startup when set. There is no `GITHUB_APP_ID`: the App JWT's issuer is `GITHUB_OAUTH_CLIENT_ID` (the App's client ID, GitHub's recommendation; ADR 0003).
 
 ## 12. Common commands (keep this section updated as the repo grows)
 
@@ -165,6 +165,7 @@ Required from M2: `JWT_SECRET` (32+ characters, placeholders rejected), `GITHUB_
 - API types: `cd apps/api && uv run mypy` (strict on `app/core/`, `app/services/` and `app/deps.py`; `ai/` joins when it is filled)
 - Sign in locally: open `http://localhost:5173` (never `:8000` directly; cookies live on the web origin) and use "Sign in with GitHub". Session state: `GET /api/me`.
 - Seed fake dev data (needs `ENVIRONMENT=development` and a localhost DB): `cd apps/api && uv run python -m scripts.seed`
+- Worker (from M4): `cd apps/api && uv run python -m app.worker.main` (own process; compose runs it as the `worker` service, logs: `docker compose logs -f worker`), or set `RUN_WORKER_IN_API=true` to run it inside the API process. Stop with Ctrl+C / SIGTERM: running jobs get `WORKER_SHUTDOWN_GRACE_SECONDS`, then are released back to the queue. Dead jobs: `SELECT type, last_error FROM jobs WHERE status = 'dead'`.
 - Health: `GET /health` (liveness, always 200, reports `database` and `revision`) and `GET /ready` (503 when the DB is down)
 - Web install: `cd apps/web && npm ci`
 - Web dev: `npm run dev` · lint: `npm run lint` · format: `npm run format` (check: `npm run format:check`) · types: `npm run typecheck` · tests: `npm test` · build: `npm run build`

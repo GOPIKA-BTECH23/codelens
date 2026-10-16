@@ -5,9 +5,11 @@ A factory (instead of a module-level `app`) means settings are only loaded when 
 starts, and tests can build an app with explicit settings.
 """
 
+import asyncio
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import timedelta
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,6 +25,7 @@ from app.core.middleware import REQUEST_ID_HEADER, RequestIdMiddleware
 from app.core.rate_limit import PostgresRateLimiter
 from app.db.session import create_engine, create_session_factory
 from app.services.jobs import PostgresJobQueue
+from app.worker.main import build_worker
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -34,8 +37,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     engine = create_engine(settings)
 
     @asynccontextmanager
-    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        worker_task: asyncio.Task[None] | None = None
+        stop_worker = asyncio.Event()
+        if settings.run_worker_in_api:
+            # Free-tier mode (decision 3): the job loop lives in this process.
+            worker = build_worker(settings, app.state.session_factory, app.state.job_queue)
+            worker_task = asyncio.create_task(worker.run(stop_worker), name="in-api-worker")
         yield
+        if worker_task is not None:
+            stop_worker.set()  # in-flight jobs get the grace period, then are released
+            await worker_task
         await engine.dispose()  # close pooled connections on shutdown
 
     app = FastAPI(title="CodeLens API", version=__version__, lifespan=lifespan)
@@ -44,7 +56,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.session_factory = create_session_factory(engine)
     app.state.rate_limiter = PostgresRateLimiter(app.state.session_factory)
     # The webhook enqueues through the request's own session; the worker (M4) claims.
-    app.state.job_queue = PostgresJobQueue(app.state.session_factory)
+    app.state.job_queue = PostgresJobQueue(
+        app.state.session_factory,
+        visibility_timeout=timedelta(seconds=settings.job_visibility_timeout_seconds),
+    )
 
     # Middleware: the LAST one added runs FIRST. Request order, outermost first:
     #   RequestId -> SecurityHeaders -> CORS -> CSRF -> routes
