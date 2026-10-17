@@ -6,10 +6,12 @@ this directory: `run_evals.py` reads only `seeded_prs/`. The folder is empty bet
 
 ## History
 
-**Batch 1 (drafted 2026-10-17 by Claude Opus 5.5 via Claude Code; reviewed by the
-repository owner).** Ten cases were drafted: five flawed and five clean near-misses.
+**Batch 1 (drafted 2026-10-17 by Claude Opus 5.5 via Claude Code).** Ten cases were
+drafted: five flawed and five clean near-misses. The labels were reviewed in chat by a second
+model session (Claude Sonnet 5.5) and accepted by the repository owner. They were not
+independently labelled by a human (see `docs/evals.md`, "Dataset provenance").
 
-- **Accepted (9), labels corrected by hand, now in `seeded_prs/`:**
+- **Accepted (9), now in `seeded_prs/`:**
   - flawed: `weak_password_hash`, `eval_user_input`, `tls_verify_disabled`,
     `missing_authorization`;
   - clean: `clean_safe_yaml`, `clean_subprocess_args`, `clean_sha256_cache_key`,
