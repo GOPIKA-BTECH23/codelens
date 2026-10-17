@@ -1,0 +1,3 @@
+# The eval harness follows the API's lint/format rules (it runs inside the API's environment).
+extend = "../apps/api/pyproject.toml"
+src = ["..", "../apps/api"]

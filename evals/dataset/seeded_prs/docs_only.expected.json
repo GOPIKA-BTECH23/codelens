@@ -1,6 +1,15 @@
 {
+  "schema_version": 2,
   "case": "docs_only",
   "description": "Documentation-only change. Nothing to security-review: the run is skipped (or gets a short note).",
+  "source": "synthetic",
+  "label_status": "accepted",
+  "labelled_by": "project author, M5 (commit 4137554); AI-assisted, checked by the M5 tests",
+  "pr": {
+    "title": "Document configuration and Python version",
+    "body": ""
+  },
+  "clean": true,
   "has_code_to_review": false,
   "expected_findings": [],
   "optional_findings": []

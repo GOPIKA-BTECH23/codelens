@@ -1,0 +1,6 @@
+{
+  "status": "provisional",
+  "_about": "dev: may be looked at while changing prompts or the pipeline. test: held out; only run with --include-test, never used to choose between prompt versions. Provisional until the split is re-proposed and approved after the candidate cases are reviewed and added (M13).",
+  "dev": ["docs_only", "hardcoded_secret", "path_traversal", "sql_injection"],
+  "test": ["clean_change", "prompt_injection", "unsafe_deserialization"]
+}
