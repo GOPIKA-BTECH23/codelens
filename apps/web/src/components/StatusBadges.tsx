@@ -4,7 +4,6 @@ import {
   CheckCircle2,
   Circle,
   CircleAlert,
-  CircleDashed,
   CircleSlash,
   Clock,
   GitMerge,
@@ -16,14 +15,8 @@ import {
   XCircle,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
-import type { IndexStatus, PullRequestState, RunStatus, Severity } from '../api/types'
-import {
-  PR_STATE,
-  RUN_STATUS,
-  SEVERITY_LABEL,
-  SEVERITY_TONE,
-  indexStatusLabel,
-} from '../lib/labels'
+import type { PullRequestState, RunStatus, Severity } from '../api/types'
+import { PR_STATE, SEVERITY_LABEL, SEVERITY_TONE, runBadge } from '../lib/labels'
 import { Badge } from './ui/Badge'
 
 const RUN_ICON: Record<RunStatus, ReactNode> = {
@@ -35,10 +28,18 @@ const RUN_ICON: Record<RunStatus, ReactNode> = {
   skipped: <SkipForward />,
 }
 
-export function RunStatusBadge({ status }: { status: RunStatus }) {
+export function RunStatusBadge({
+  status,
+  reviewPosted,
+}: {
+  status: RunStatus
+  reviewPosted: boolean
+}) {
+  const { label, tone } = runBadge(status, reviewPosted)
+  const notReviewed = status === 'succeeded' && !reviewPosted
   return (
-    <Badge tone={RUN_STATUS[status].tone} icon={RUN_ICON[status]}>
-      {RUN_STATUS[status].label}
+    <Badge tone={tone} icon={notReviewed ? <CircleSlash /> : RUN_ICON[status]}>
+      {label}
     </Badge>
   )
 }
@@ -53,15 +54,6 @@ export function PrStateBadge({ state }: { state: PullRequestState }) {
   return (
     <Badge tone={PR_STATE[state].tone} icon={PR_ICON[state]}>
       {PR_STATE[state].label}
-    </Badge>
-  )
-}
-
-export function IndexBadge({ status }: { status: IndexStatus }) {
-  const { label, tone } = indexStatusLabel(status)
-  return (
-    <Badge tone={tone} icon={<CircleDashed />}>
-      {label}
     </Badge>
   )
 }

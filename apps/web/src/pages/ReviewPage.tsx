@@ -88,7 +88,7 @@ function SummaryCard({ data, open }: { data: ReviewOut; open: FindingOut[] }) {
             <h2 id="summary-heading" className="text-base font-semibold text-fg">
               Review summary
             </h2>
-            <RunStatusBadge status={data.run.status} />
+            <RunStatusBadge status={data.run.status} reviewPosted={data.run.review_posted} />
           </div>
 
           {inProgress && (

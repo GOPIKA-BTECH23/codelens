@@ -39,6 +39,7 @@ const REPO = {
     pull_request_id: 'p1',
     pull_number: 7,
     pull_title: 'Add lookup',
+    review_posted: true,
   },
 }
 
@@ -63,7 +64,7 @@ function renderAt(path: string) {
 const page = <T,>(items: T[], total = items.length) => ({ items, total, limit: 20, offset: 0 })
 
 describe('dashboard', () => {
-  it('lists repositories with their latest review and says indexing is not available yet', async () => {
+  it('lists repositories with their latest review and no indexing badge', async () => {
     mockApi({
       'GET /api/me': () => json(200, ME),
       'GET /api/repos?limit=20&offset=0': () => json(200, page([REPO])),
@@ -78,8 +79,8 @@ describe('dashboard', () => {
       '/pulls/p1',
     )
     expect(within(row).getByText('Reviewed')).toBeInTheDocument()
-    // `failed` is what the M5 stub sets; the UI must not show it as a user-fixable error.
-    expect(within(row).getByText('Indexing: not available yet')).toBeInTheDocument()
+    // Indexing is not built: no index badge, whatever `index_status` says.
+    expect(within(row).queryByText(/index/i)).not.toBeInTheDocument()
     expect(within(row).queryByText(/failed/i)).not.toBeInTheDocument()
   })
 
@@ -144,6 +145,7 @@ describe('repo page', () => {
       status: 'succeeded',
       created_at: '2026-10-17T10:00:00Z',
       findings_count: 2,
+      review_posted: true,
     }
     mockApi({
       'GET /api/me': () => json(200, ME),

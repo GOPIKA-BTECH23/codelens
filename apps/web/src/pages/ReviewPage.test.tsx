@@ -53,6 +53,7 @@ function reviewFixture(findings: FindingOut[], patchAvailable = true): ReviewOut
       error: null,
       created_at: '2026-10-17T10:05:00Z',
       finished_at: '2026-10-17T10:05:03Z',
+      review_posted: true,
     },
     summary: { what_changed: 'Adds a user lookup helper.', notes: ['Reviewed 1 file(s).'] },
     findings,
