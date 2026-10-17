@@ -41,7 +41,7 @@ Repo chat streams answers with Server-Sent Events. Option (a) puts Vercel's prox
 
 Plan (CLAUDE.md decision 1, unchanged):
 
-1. **M7** deploys a temporary `/debug/sse` endpoint behind a flag and checks that events arrive incrementally through the rewrite, then removes it and records the result here.
+1. **M7** deployed a temporary `/debug/sse` endpoint behind a flag and checked that events arrive incrementally through the rewrite, then removed it. Result below: **not buffered**, so options 2 and 3 are not needed.
 2. If the rewrite buffers, **serve the built React app from FastAPI** (one origin on Render, no proxy at all). Cookies, CSRF and the OAuth callback stay the same; only the hosting of the static files moves.
 3. A paid custom domain (web and API on subdomains of one site, still same-site) only if both fail.
 
@@ -69,23 +69,23 @@ Exemptions: none in M2. M3 exempts `POST /webhooks/github`, which carries no coo
 
 ## M7 deployment status and findings
 
-Written 2026-10-17, **before** the first live deploy. Nothing below under "Live results" is filled in until the checks have been run against the real URLs.
+Prepared 2026-10-17 before the first live deploy; live results recorded below.
 
 Prepared in M7:
 
 - `apps/web/vercel.json`: rewrite `/api/:path*` to the Render URL (Vercel strips nothing itself; the rewrite maps `/api/x` to `/x`), `x-vercel-enable-rewrite-caching: 0` and `Cache-Control: no-store` on `/api/*`, and an SPA fallback that excludes `/api/`. Checked against Vercel's rewrites docs (updated 2026-08-11): external rewrites forward `x-real-ip`, `x-forwarded-for`, `x-forwarded-host` and `x-forwarded-proto`, and honour upstream `Cache-Control` by default for projects created after 2026-04-06 (our `no-store` still applies, and the header turns rewrite caching off as a second layer).
 - Uvicorn runs with `--proxy-headers --forwarded-allow-ips='*'`. Accepted limitation and reasoning: `docs/deployment.md`, "Proxy headers and the client IP".
 - Production GitHub App callback: `https://codelens-blue.vercel.app/api/auth/github/callback`; its webhook goes straight to Render.
-- `scripts/check_deployment.py` checks, through the web origin: `/api/health` is JSON and not cached; `GET /api/auth/github/login` returns a redirect to github.com with a `cl_oauth` cookie that is HttpOnly, Secure, SameSite=Lax, host-only and scoped to `/api/auth/github`; `/api/debug/sse` events arrive one per second rather than together. The temporary `/debug/sse` endpoint exists only when `DEBUG_SSE_ENABLED=true` and answers 404 otherwise (unit tested).
+- `scripts/check_deployment.py` checks, through the web origin: `/api/health` is JSON and not cached; `GET /api/auth/github/login` returns a redirect to github.com with a `cl_oauth` cookie that is HttpOnly, Secure, SameSite=Lax, host-only and scoped to `/api/auth/github`; `/api/debug/sse` events arrive one per second rather than together. The temporary `/debug/sse` endpoint has since been removed; the checker now skips the SSE check when it answers 404.
 - The SSE endpoint was run in the production image locally (events arrived at +0 s, +1 s, +2 s); that proves the endpoint, not the Vercel path.
 
-Live results (to fill in after the first deploy):
+Live results, `scripts/check_deployment` run against https://codelens-blue.vercel.app on 2026-10-17 (checks run: `health`, `cookie`, `sse`):
 
 | Check | Result |
 | --- | --- |
-| Cookies set and returned through the rewrite (full sign-in from a clean browser) | _pending_ |
-| `Set-Cookie` attributes of `cl_oauth` through Vercel | _pending_ |
-| `/api/health` not cached (`x-vercel-cache` not HIT) | _pending_ |
-| SSE incremental through the rewrite | _pending_ |
+| Full sign-in from a clean browser and a real PR review | Tested manually by the maintainer (not scripted; no captured output) |
+| `Set-Cookie` attributes of `cl_oauth` through Vercel | **PASS**: set with HttpOnly, Secure, SameSite=lax, Path=/api/auth/github |
+| `/api/health` not cached | **PASS**: status ok, database ok, revision `b7e2c4a9d105`, `cache-control: no-store`, `x-vercel-cache: MISS` |
+| SSE incremental through the rewrite | **PASS**: 8 events arrived one per second, spread 7.0 s, so the Vercel rewrite does not buffer SSE |
 
-Decision rule if SSE is buffered: serve the built React app from FastAPI (item 2 of the plan above), as a separate small change. Then remove `/debug/sse` either way.
+Consequence: the single-origin fallback (serve the React app from FastAPI) is not needed. The temporary `/debug/sse` endpoint and its `DEBUG_SSE_ENABLED` setting were removed afterwards. Caveat: this tested a plain `text/event-stream` response over about 8 s; M9 should re-check with the real chat stream.
