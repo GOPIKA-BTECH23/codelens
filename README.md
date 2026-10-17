@@ -2,11 +2,30 @@
 
 AI code review for GitHub pull requests, plus chat with your repo: grounded answers with `file:line` citations.
 
-> **Status: under construction.** Milestones M0 to M6 are done: sign-in, webhook intake, the job worker, a first security agent that reviews PRs and posts inline comments, and a dashboard to browse repositories, pull requests and reviews and to rate findings. Nothing is deployed yet. See the checklist below.
+> **Status: under construction.** Milestones M0 to M7 are done in code: sign-in, webhook intake, the job worker, a first security agent that reviews PRs and posts inline comments, a dashboard, and deployment config. See the checklist below.
+
+## Live demo
+
+- **App:** https://codelens-gopika.vercel.app _(live once the manual steps in [docs/deployment.md](docs/deployment.md) are done)_
+- **Demo repository (install the GitHub App here, open a PR):** `https://github.com/GOPIKA-BTECH23/<demo-repo>` _(set after you create it)_
+- **First load may take about a minute.** The API runs on a free Render instance that sleeps after 15 minutes without traffic. Reviews can also be delayed if a webhook arrives while it sleeps; the demo is for public or demo repositories only (every reviewed diff is sent to the LLM provider).
+
+Hosting: Vercel (web) · Render (API + worker in one free service) · Supabase (Postgres + pgvector) · GitHub Actions (CI, then a gated deploy with a smoke test).
 
 ## Architecture
 
-_Diagram placeholder: a mermaid architecture diagram arrives with the first deployed milestone (M7). The design is described in [CLAUDE.md](CLAUDE.md), section 4._
+```mermaid
+flowchart LR
+  GH[GitHub] -- "webhook (HMAC-signed)" --> API
+  Browser --> Web["Vercel: React app"]
+  Web -- "/api/* rewrite" --> API["Render: FastAPI + in-process worker"]
+  API -- "insert job (202)" --> DB[("Supabase Postgres + pgvector")]
+  API -- "claims jobs (SKIP LOCKED)" --> DB
+  API -- "diff" --> LLM["Groq LLM"]
+  API -- "post one review (installation token)" --> GH
+```
+
+The design is described in [CLAUDE.md](CLAUDE.md), section 4. Deploying it: [docs/deployment.md](docs/deployment.md).
 
 In one line: GitHub webhook → FastAPI (verify, record, enqueue, return `202`) → Postgres job queue → worker (LangGraph review pipeline) → review posted on the PR. A React dashboard and a streaming repo chat sit on top.
 
@@ -98,7 +117,7 @@ cd apps/web && npm ci && npm run lint && npm run typecheck && npm test && npm ru
 - [x] M4 Worker and job processing
 - [x] M5 LLM layer and the first agent
 - [x] M6 Frontend dashboard and review pages
-- [ ] M7 Deploy the MVP
+- [x] M7 Deploy the MVP (config, CI/CD and docs done; go-live is the manual checklist in docs/deployment.md)
 - [ ] M8 Repo indexing
 - [ ] M9 Hybrid retrieval and streaming repo chat
 - [ ] M10 LangGraph multi-agent review pipeline

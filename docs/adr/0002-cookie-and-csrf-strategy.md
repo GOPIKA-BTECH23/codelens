@@ -66,3 +66,26 @@ Exemptions: none in M2. M3 exempts `POST /webhooks/github`, which carries no coo
 - Any new state-changing endpoint is CSRF-protected automatically; forgetting is not possible.
 - Every API response is `no-store`. If a future endpoint is genuinely public and cacheable, it must opt in explicitly.
 - M7 must: configure the Vercel rewrite and the caching header, set uvicorn's trusted proxies, register the production callback URL on the production GitHub App, and run the SSE check above.
+
+## M7 deployment status and findings
+
+Written 2026-10-17, **before** the first live deploy. Nothing below under "Live results" is filled in until the checks have been run against the real URLs.
+
+Prepared in M7:
+
+- `apps/web/vercel.json`: rewrite `/api/:path*` to the Render URL (Vercel strips nothing itself; the rewrite maps `/api/x` to `/x`), `x-vercel-enable-rewrite-caching: 0` and `Cache-Control: no-store` on `/api/*`, and an SPA fallback that excludes `/api/`. Checked against Vercel's rewrites docs (updated 2026-08-11): external rewrites forward `x-real-ip`, `x-forwarded-for`, `x-forwarded-host` and `x-forwarded-proto`, and honour upstream `Cache-Control` by default for projects created after 2026-04-06 (our `no-store` still applies, and the header turns rewrite caching off as a second layer).
+- Uvicorn runs with `--proxy-headers --forwarded-allow-ips='*'`. Accepted limitation and reasoning: `docs/deployment.md`, "Proxy headers and the client IP".
+- Production GitHub App callback: `https://codelens-gopika.vercel.app/api/auth/github/callback`; its webhook goes straight to Render.
+- `scripts/check_deployment.py` checks, through the web origin: `/api/health` is JSON and not cached; `GET /api/auth/github/login` returns a redirect to github.com with a `cl_oauth` cookie that is HttpOnly, Secure, SameSite=Lax, host-only and scoped to `/api/auth/github`; `/api/debug/sse` events arrive one per second rather than together. The temporary `/debug/sse` endpoint exists only when `DEBUG_SSE_ENABLED=true` and answers 404 otherwise (unit tested).
+- The SSE endpoint was run in the production image locally (events arrived at +0 s, +1 s, +2 s); that proves the endpoint, not the Vercel path.
+
+Live results (to fill in after the first deploy):
+
+| Check | Result |
+| --- | --- |
+| Cookies set and returned through the rewrite (full sign-in from a clean browser) | _pending_ |
+| `Set-Cookie` attributes of `cl_oauth` through Vercel | _pending_ |
+| `/api/health` not cached (`x-vercel-cache` not HIT) | _pending_ |
+| SSE incremental through the rewrite | _pending_ |
+
+Decision rule if SSE is buffered: serve the built React app from FastAPI (item 2 of the plan above), as a separate small change. Then remove `/debug/sse` either way.
