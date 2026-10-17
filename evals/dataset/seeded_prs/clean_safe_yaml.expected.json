@@ -1,0 +1,16 @@
+{
+  "schema_version": 2,
+  "case": "clean_safe_yaml",
+  "description": "Uses yaml.safe_load on a request body and validates the keys. Looks like unsafe deserialization but is not (false-positive check).",
+  "source": "synthetic (model-drafted)",
+  "label_status": "accepted",
+  "labelled_by": "labels drafted by Claude Opus 5.5 via Claude Code (2026-10-17); reviewed by Claude Sonnet 5.5 in chat (2026-10-17); accepted by the repository owner on the strength of that review, not independently labelled by a human",
+  "pr": {
+    "title": "Import settings from uploaded YAML",
+    "body": ""
+  },
+  "clean": true,
+  "has_code_to_review": true,
+  "expected_findings": [],
+  "optional_findings": []
+}

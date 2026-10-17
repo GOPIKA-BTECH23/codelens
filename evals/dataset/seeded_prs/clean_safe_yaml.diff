@@ -1,0 +1,18 @@
+diff --git a/app/import_settings.py b/app/import_settings.py
+index e07be82..a8e92d8 100644
+--- a/app/import_settings.py
++++ b/app/import_settings.py
+@@ -1,3 +1,13 @@
+ """Settings import."""
+ 
++import yaml
++from flask import abort, request
++
+ ALLOWED_KEYS = {"theme", "language", "timezone"}
++
++
++def import_settings() -> dict:
++    data = yaml.safe_load(request.data) or {}
++    if not isinstance(data, dict) or not set(data) <= ALLOWED_KEYS:
++        abort(400)
++    return {key: str(value) for key, value in data.items()}

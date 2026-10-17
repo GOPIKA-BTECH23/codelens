@@ -22,6 +22,7 @@ import asyncio
 import logging
 import secrets
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 from app.ai.llm.base import LLMInvalidOutput, LLMProvider, LLMUsage, Message
 from app.ai.prompts import Prompt, load_prompt
@@ -78,8 +79,21 @@ def new_token(text: str) -> str:
             return token
 
 
+@dataclass
+class _Tally:
+    """Calls that returned (valid or not) and how many of them were invalid output. The
+    evals report invalid / calls as the invalid-output rate."""
+
+    calls: int = 0
+    invalid: int = 0
+
+
 async def _review_chunk(
-    llm: LLMProvider, prompt: Prompt, chunk: DiffChunk, usage_log: list[LLMUsage]
+    llm: LLMProvider,
+    prompt: Prompt,
+    chunk: DiffChunk,
+    usage_log: list[LLMUsage],
+    tally: _Tally,
 ) -> AgentOutput | None:
     problems: Sequence[str] = ()
     for attempt in range(MAX_RETRIES + 1):
@@ -89,6 +103,8 @@ async def _review_chunk(
                 AgentOutput, messages, max_output_tokens=MAX_OUTPUT_TOKENS
             )
         except LLMInvalidOutput as exc:
+            tally.calls += 1
+            tally.invalid += 1
             if exc.usage is not None:
                 usage_log.append(exc.usage)
             problems = exc.problems or (str(exc),)
@@ -97,6 +113,7 @@ async def _review_chunk(
                 extra={"attempt": attempt + 1, "files": list(chunk.paths), "problems": problems},
             )
             continue
+        tally.calls += 1
         usage_log.append(result.usage)
         return result.value
     logger.error(
@@ -122,10 +139,11 @@ async def security_agent(
     """
     prompt = prompt or load_prompt(PROMPT_NAME, PROMPT_VERSION)
     gate = asyncio.Semaphore(concurrency)
+    tally = _Tally()
 
     async def one(chunk: DiffChunk) -> AgentOutput | None:
         async with gate:
-            return await _review_chunk(llm, prompt, chunk, usage_log)
+            return await _review_chunk(llm, prompt, chunk, usage_log, tally)
 
     outcomes = await asyncio.gather(*(one(c) for c in chunks), return_exceptions=True)
     for outcome in outcomes:
@@ -150,5 +168,7 @@ async def security_agent(
         model=llm.model,
         chunks_total=len(chunks),
         chunks_failed=failed,
+        calls=tally.calls,
+        invalid_outputs=tally.invalid,
         usage=list(usage_log),
     )

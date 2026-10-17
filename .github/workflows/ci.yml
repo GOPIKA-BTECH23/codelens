@@ -48,8 +48,9 @@ jobs:
           enable-cache: true
           cache-dependency-glob: apps/api/uv.lock
       - run: uv sync --frozen
-      - run: uv run ruff check .
-      - run: uv run ruff format --check .
+      # ../../evals: the eval harness (M13) lives at the repo root but runs in this environment.
+      - run: uv run ruff check . ../../evals
+      - run: uv run ruff format --check . ../../evals
       - run: uv run mypy
       - run: uv run pytest
       # The web app's types are generated from this snapshot of the API schema. If a Pydantic

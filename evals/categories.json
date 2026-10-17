@@ -1,0 +1,65 @@
+{
+  "_about": "Category compatibility for matching a finding to a ground-truth issue (docs/evals.md). Labels in the dataset use the family names (the keys). A finding's category matches a label when it is the family name, one of its aliases, or an umbrella term that lists the family. Canonical names follow the ones the security prompt asks for. Keep this small and reviewed by hand: every alias makes matching more lenient.",
+  "families": {
+    "sql-injection": [
+      "sqli"
+    ],
+    "command-injection": [
+      "os-command-injection",
+      "shell-injection"
+    ],
+    "code-injection": [
+      "eval-injection",
+      "unsafe-eval",
+      "arbitrary-code-execution",
+      "remote-code-execution"
+    ],
+    "hardcoded-secret": [
+      "hardcoded-credentials",
+      "hardcoded-password",
+      "hardcoded-api-key"
+    ],
+    "path-traversal": [
+      "directory-traversal"
+    ],
+    "unsafe-deserialization": [
+      "insecure-deserialization"
+    ],
+    "weak-crypto": [
+      "weak-hash",
+      "weak-hashing",
+      "insecure-hash",
+      "weak-password-hashing",
+      "weak-password-hash",
+      "insecure-password-storage"
+    ],
+    "missing-authz": [
+      "missing-authorization",
+      "broken-access-control",
+      "idor",
+      "missing-access-control",
+      "missing-ownership-check",
+      "authorization-bypass"
+    ],
+    "insecure-config": [
+      "insecure-tls",
+      "tls-verification-disabled",
+      "insecure-default",
+      "debug-mode",
+      "ssl-verification-disabled",
+      "insecure-ssl",
+      "certificate-validation-disabled"
+    ],
+    "prompt-injection": [],
+    "ssrf": [],
+    "open-redirect": [],
+    "xss": []
+  },
+  "umbrellas": {
+    "injection": [
+      "sql-injection",
+      "command-injection",
+      "code-injection"
+    ]
+  }
+}

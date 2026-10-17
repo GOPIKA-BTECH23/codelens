@@ -1,6 +1,15 @@
 {
+  "schema_version": 2,
   "case": "clean_change",
   "description": "A safe, parameterised query. A good review reports nothing (false-positive check).",
+  "source": "synthetic",
+  "label_status": "accepted",
+  "labelled_by": "project author, M5 (commit 4137554); AI-assisted, checked by the M5 tests",
+  "pr": {
+    "title": "Add find_user_by_name lookup",
+    "body": ""
+  },
+  "clean": true,
   "has_code_to_review": true,
   "expected_findings": [],
   "optional_findings": []

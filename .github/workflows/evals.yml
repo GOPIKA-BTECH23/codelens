@@ -1,0 +1,88 @@
+name: Evals
+
+# Manual only: every run calls a real model API (free tier, but rate-limited and priced at
+# list price in the report), so nothing triggers it automatically. Actions > Evals > Run.
+on:
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: LLM provider
+        type: choice
+        options: [groq, gemini]
+        default: groq
+      model:
+        description: Model (empty = the provider's default)
+        type: string
+        default: ''
+      split:
+        description: Dataset split (test/all include the held-out split)
+        type: choice
+        options: [dev, test, all]
+        default: dev
+      repeats:
+        description: Repeats per case
+        type: number
+        default: 1
+      max_cost_usd:
+        description: Estimated-cost cap in USD (at most 0.25)
+        type: string
+        default: '0.05'
+      cases:
+        description: Comma-separated case subset (empty = whole split)
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+# One eval run at a time: two would share the provider's rate limit.
+concurrency:
+  group: evals
+  cancel-in-progress: false
+
+jobs:
+  evals:
+    name: Run evals
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          python-version: '3.12'
+          enable-cache: true
+          cache-dependency-glob: apps/api/uv.lock
+      - run: uv sync --frozen
+        working-directory: apps/api
+      # Inputs reach the shell only as environment variables, never spliced into the script,
+      # so a crafted model name cannot inject commands.
+      - name: Run evals
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          PROVIDER: ${{ inputs.provider }}
+          MODEL: ${{ inputs.model }}
+          SPLIT: ${{ inputs.split }}
+          REPEATS: ${{ inputs.repeats }}
+          MAX_COST: ${{ inputs.max_cost_usd }}
+          CASES: ${{ inputs.cases }}
+        run: |
+          python3 -c 'import os, sys; from decimal import Decimal; c = Decimal(os.environ["MAX_COST"]); sys.exit(0 if 0 < c <= Decimal("0.25") else "max_cost_usd must be in (0, 0.25]")'
+          args=(--provider "$PROVIDER" --split "$SPLIT" --repeats "$REPEATS" --max-cost-usd "$MAX_COST" --out-dir evals/results/ci)
+          if [ -n "$MODEL" ]; then args+=(--model "$MODEL"); fi
+          if [ -n "$CASES" ]; then args+=(--cases "$CASES"); fi
+          if [ "$SPLIT" != "dev" ]; then args+=(--include-test); fi
+          uv run --project apps/api python -m evals.run_evals "${args[@]}"
+      # Uploaded even when the run stopped (rate limit, budget): the .partial checkpoint
+      # shows how far it got. To keep a result, commit the .json into evals/results/ and run
+      # `python -m evals.report` (docs/evals.md).
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: eval-report-${{ github.run_id }}
+          path: |
+            evals/results/ci/
+            evals/results/.partial/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 30

@@ -2,8 +2,9 @@
 an unpriced model stops the worker at boot instead of failing the first review."""
 
 from datetime import date
+from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, SecretStr
 
 from app.ai.llm import gemini, groq
 from app.ai.llm.base import LLMProvider
@@ -35,35 +36,56 @@ def model_name(settings: Settings) -> str:
 
 
 def build_llm(settings: Settings) -> LLMProvider:
-    provider = settings.llm_provider
-    model = model_name(settings)
+    if settings.llm_provider == "fake" and settings.environment == "production":
+        raise LLMConfigError(
+            "LLM_PROVIDER=fake is for development and tests only; set groq or gemini"
+        )
+    return build_provider(
+        settings.llm_provider,
+        model_name(settings),
+        groq_api_key=settings.groq_api_key,
+        gemini_api_key=settings.gemini_api_key,
+        requests_per_minute=settings.llm_requests_per_minute,
+        timeout_seconds=settings.llm_timeout_seconds,
+        max_retries=settings.llm_max_retries,
+    )
+
+
+def build_provider(
+    provider: Literal["groq", "gemini", "fake"],
+    model: str,
+    *,
+    groq_api_key: SecretStr | None,
+    gemini_api_key: SecretStr | None,
+    requests_per_minute: int,
+    timeout_seconds: float,
+    max_retries: int,
+) -> LLMProvider:
+    """The provider from explicit values (the eval harness uses this without the API's
+    Settings, which would demand a database URL and OAuth secrets)."""
     if provider == "fake":
-        if settings.environment == "production":
-            raise LLMConfigError(
-                "LLM_PROVIDER=fake is for development and tests only; set groq or gemini"
-            )
         return FakeLLM(model=model, fallback=_fake_fallback)
 
     price_for(model, date.today())  # raises UnknownModelPrice for an unpriced model
-    limiter = RequestRateLimiter(settings.llm_requests_per_minute)
+    limiter = RequestRateLimiter(requests_per_minute)
     if provider == "groq":
-        if settings.groq_api_key is None:
+        if groq_api_key is None:
             raise LLMConfigError("LLM_PROVIDER=groq needs GROQ_API_KEY")
         return groq.GroqProvider(
-            api_key=settings.groq_api_key.get_secret_value(),
+            api_key=groq_api_key.get_secret_value(),
             model=model,
             limiter=limiter,
-            timeout_seconds=settings.llm_timeout_seconds,
-            max_retries=settings.llm_max_retries,
+            timeout_seconds=timeout_seconds,
+            max_retries=max_retries,
         )
-    if settings.gemini_api_key is None:
+    if gemini_api_key is None:
         raise LLMConfigError("LLM_PROVIDER=gemini needs GEMINI_API_KEY")
     return gemini.GeminiProvider(
-        api_key=settings.gemini_api_key.get_secret_value(),
+        api_key=gemini_api_key.get_secret_value(),
         model=model,
         limiter=limiter,
-        timeout_seconds=settings.llm_timeout_seconds,
-        max_retries=settings.llm_max_retries,
+        timeout_seconds=timeout_seconds,
+        max_retries=max_retries,
     )
 
 

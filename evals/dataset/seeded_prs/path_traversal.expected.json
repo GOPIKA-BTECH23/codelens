@@ -1,6 +1,15 @@
 {
+  "schema_version": 2,
   "case": "path_traversal",
   "description": "A download endpoint joins a query parameter onto the upload directory without normalising it.",
+  "source": "synthetic",
+  "label_status": "accepted",
+  "labelled_by": "project author, M5 (commit 4137554); AI-assisted, checked by the M5 tests",
+  "pr": {
+    "title": "Add file download endpoint",
+    "body": ""
+  },
+  "clean": false,
   "has_code_to_review": true,
   "expected_findings": [
     {

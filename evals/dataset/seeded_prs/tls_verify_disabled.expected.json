@@ -1,0 +1,24 @@
+{
+  "schema_version": 2,
+  "case": "tls_verify_disabled",
+  "description": "A payment client posts refund data with TLS certificate checks disabled.",
+  "source": "synthetic (model-drafted)",
+  "label_status": "accepted",
+  "labelled_by": "labels drafted by Claude Opus 5.5 via Claude Code (2026-10-17); reviewed by Claude Sonnet 5.5 in chat (2026-10-17); accepted by the repository owner on the strength of that review, not independently labelled by a human",
+  "pr": {
+    "title": "Report refunds to the payment provider",
+    "body": ""
+  },
+  "clean": false,
+  "has_code_to_review": true,
+  "expected_findings": [
+    {
+      "file": "app/payments.py",
+      "line": 24,
+      "category": "insecure-config",
+      "min_severity": "medium",
+      "note": "TLS verification off on a request carrying a bearer token: MITM can steal it."
+    }
+  ],
+  "optional_findings": []
+}

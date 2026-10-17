@@ -239,3 +239,7 @@ test-results/
 .idea/
 Thumbs.db
 .DS_Store
+
+# Eval harness (M13): in-progress checkpoints and fake/dirty smoke runs
+evals/results/.partial/
+evals/results/smoke/

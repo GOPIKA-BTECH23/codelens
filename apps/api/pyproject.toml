@@ -42,6 +42,7 @@ packages = ["app"]
 
 [tool.ruff]
 line-length = 100
+src = [".", "../.."]  # `evals` (the M13 harness, at the repo root) is first-party too
 target-version = "py312"
 
 [tool.ruff.lint]
@@ -49,13 +50,15 @@ select = ["E", "F", "I", "UP", "B", "SIM", "C4"]
 
 [tool.mypy]
 python_version = "3.12"
-files = ["app/core", "app/services", "app/worker", "app/ai", "app/deps.py"]
-# CLAUDE.md decision 22: strict on core/, services/ and ai/ (ai/ joined in M5). Each directory is added to
+files = ["app/core", "app/services", "app/worker", "app/ai", "app/deps.py", "../../evals"]
+# CLAUDE.md decision 22: strict on core/, services/ and ai/ (ai/ joined in M5, the evals/ harness in M13). Each directory is added to
 # `files` (and to the CI step) in the milestone that fills it.
 strict = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# The repo root, so tests can import the eval harness (evals/, M13) next to `app`.
+pythonpath = ["../.."]
 addopts = "-ra"
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
