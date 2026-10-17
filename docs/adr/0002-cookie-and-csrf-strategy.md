@@ -75,7 +75,7 @@ Prepared in M7:
 
 - `apps/web/vercel.json`: rewrite `/api/:path*` to the Render URL (Vercel strips nothing itself; the rewrite maps `/api/x` to `/x`), `x-vercel-enable-rewrite-caching: 0` and `Cache-Control: no-store` on `/api/*`, and an SPA fallback that excludes `/api/`. Checked against Vercel's rewrites docs (updated 2026-08-11): external rewrites forward `x-real-ip`, `x-forwarded-for`, `x-forwarded-host` and `x-forwarded-proto`, and honour upstream `Cache-Control` by default for projects created after 2026-04-06 (our `no-store` still applies, and the header turns rewrite caching off as a second layer).
 - Uvicorn runs with `--proxy-headers --forwarded-allow-ips='*'`. Accepted limitation and reasoning: `docs/deployment.md`, "Proxy headers and the client IP".
-- Production GitHub App callback: `https://codelens-gopika.vercel.app/api/auth/github/callback`; its webhook goes straight to Render.
+- Production GitHub App callback: `https://codelens-blue.vercel.app/api/auth/github/callback`; its webhook goes straight to Render.
 - `scripts/check_deployment.py` checks, through the web origin: `/api/health` is JSON and not cached; `GET /api/auth/github/login` returns a redirect to github.com with a `cl_oauth` cookie that is HttpOnly, Secure, SameSite=Lax, host-only and scoped to `/api/auth/github`; `/api/debug/sse` events arrive one per second rather than together. The temporary `/debug/sse` endpoint exists only when `DEBUG_SSE_ENABLED=true` and answers 404 otherwise (unit tested).
 - The SSE endpoint was run in the production image locally (events arrived at +0 s, +1 s, +2 s); that proves the endpoint, not the Vercel path.
 

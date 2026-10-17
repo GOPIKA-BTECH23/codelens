@@ -25,7 +25,7 @@ jobs:
     env:
       # Repository variables (Settings -> Secrets and variables -> Actions -> Variables).
       API_URL: ${{ vars.API_URL }} # https://codelens-api-gopika.onrender.com
-      WEB_URL: ${{ vars.WEB_URL }} # https://codelens-gopika.vercel.app
+      WEB_URL: ${{ vars.WEB_URL }} # https://codelens-blue.vercel.app
       # The commit CI tested (for a manual run: the commit it was started on).
       SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
     steps:

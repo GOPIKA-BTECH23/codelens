@@ -1,6 +1,6 @@
 """Check a LIVE deployment through the Vercel proxy (M7, ADR 0002). Standard library only.
 
-    uv run python -m scripts.check_deployment https://codelens-gopika.vercel.app
+    uv run python -m scripts.check_deployment https://codelens-blue.vercel.app
 
 Checks, all through the web origin (the way a browser reaches the API):
   1. /api/health answers JSON from the API and is not cached by Vercel.

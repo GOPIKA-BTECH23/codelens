@@ -4,12 +4,12 @@ Production layout, names chosen for M7:
 
 | Piece | Service | Name | URL |
 | --- | --- | --- | --- |
-| Web (React) | Vercel (Hobby) | `codelens-gopika` | `https://codelens-gopika.vercel.app` |
+| Web (React) | Vercel (Hobby) | `codelens-blue` | `https://codelens-blue.vercel.app` |
 | API + worker | Render (Free web service, Docker) | `codelens-api-gopika` | `https://codelens-api-gopika.onrender.com` |
 | Database | Supabase (Free) | `codelens` | session-pooler URL |
 | CI/CD | GitHub Actions | `CI`, `Deploy` | |
 
-If Vercel gives you a different domain (the name was free on 2026-10-17 but is only reserved when you create the project), run the **find-and-replace list** at the end of this file.
+The web URL is `codelens-blue.vercel.app` (the originally planned `codelens-gopika` was not what Vercel assigned). If a name changes again, use the find-and-replace list at the end of this file.
 
 ```
 browser ──► Vercel (static React app)
@@ -59,7 +59,7 @@ Set by `infra/render.yaml`: the rows with a fixed value are in the file; the sec
 | `DB_POOL_SIZE` / `DB_MAX_OVERFLOW` | `3` / `2` (small, the Supabase free pooler allows few clients) | no |
 | `DAILY_COST_CAP_USD` | **`1`**. Reviews are marked `skipped` once today's estimated spend reaches it. Raise it deliberately. | no |
 | `LLM_PROVIDER` | `groq` (`fake` is refused in production) | no |
-| `WEB_ORIGIN` | `https://codelens-gopika.vercel.app` (cookies, CORS, CSRF origin check, OAuth callback) | no |
+| `WEB_ORIGIN` | `https://codelens-blue.vercel.app` (cookies, CORS, CSRF origin check, OAuth callback) | no |
 | `API_ORIGIN` | `https://codelens-api-gopika.onrender.com` | no |
 | `LOG_LEVEL` | `INFO` | no |
 | `DATABASE_URL` | Supabase → *Connect* → **Session pooler** string, rewritten as `postgresql+asyncpg://postgres.<ref>:<URL-encoded password>@<pooler-host>:5432/postgres` | **yes** |
@@ -92,7 +92,7 @@ Everything else is in `apps/web/vercel.json` (rewrite to Render, no rewrite cach
 | `RENDER_DEPLOY_HOOK_URL` | secret | Render → service → Settings → *Deploy Hook* (the URL contains a key) |
 | `VERCEL_DEPLOY_HOOK_URL` | secret | Vercel → project → Settings → Git → *Deploy Hooks* → name `deploy`, branch `main` |
 | `API_URL` | variable | `https://codelens-api-gopika.onrender.com` |
-| `WEB_URL` | variable | `https://codelens-gopika.vercel.app` |
+| `WEB_URL` | variable | `https://codelens-blue.vercel.app` |
 
 The Render docs state hooks work with `GET`/`POST` and a `key` query parameter and list no plan restriction; **that it works on the Free plan is not confirmed by the docs**, so the first deploy is the test (manual step 8). Vercel documents deploy hooks for Hobby (5 per project, 60 triggers per hour).
 
@@ -103,11 +103,11 @@ The dev App (`CodeLens-dev`) points at ngrok and localhost, so production needs 
 | Setting | Value |
 | --- | --- |
 | Name | `CodeLens` (if taken, any name; it only appears in the UI) |
-| Homepage URL | `https://codelens-gopika.vercel.app` |
-| Callback URL | `https://codelens-gopika.vercel.app/api/auth/github/callback` (the **web** origin, ADR 0002) |
+| Homepage URL | `https://codelens-blue.vercel.app` |
+| Callback URL | `https://codelens-blue.vercel.app/api/auth/github/callback` (the **web** origin, ADR 0002) |
 | Expire user authorization tokens | on |
 | Request user authorization (OAuth) during installation | on |
-| Setup URL | `https://codelens-gopika.vercel.app` |
+| Setup URL | `https://codelens-blue.vercel.app` |
 | Webhook: active | yes |
 | Webhook URL | `https://codelens-api-gopika.onrender.com/webhooks/github` (the **Render** URL, never Vercel: a proxy could re-serialise the body and break the signature) |
 | Webhook secret | the new `GITHUB_WEBHOOK_SECRET` |
@@ -178,9 +178,9 @@ Behind Vercel and Render the TCP peer is a proxy. The container starts uvicorn w
 - [ ] Supabase project created in the same region as Render (`singapore` in `render.yaml`); session-pooler URL copied
 - [ ] Production GitHub App created with the settings above; key, client secret, webhook secret saved
 - [ ] Render Blueprint created; `/health` shows `database: ok` and a `commit`
-- [ ] Vercel project `codelens-gopika` created from this repo (Root Directory `apps/web`)
+- [ ] Vercel project `codelens-blue` created from this repo (Root Directory `apps/web`)
 - [ ] GitHub Actions secrets and variables set
-- [ ] `uv run python -m scripts.check_deployment https://codelens-gopika.vercel.app` passes (needs `DEBUG_SSE_ENABLED=true` once)
+- [ ] `uv run python -m scripts.check_deployment https://codelens-blue.vercel.app` passes (needs `DEBUG_SSE_ENABLED=true` once)
 - [ ] `DEBUG_SSE_ENABLED` removed from Render, results pasted into ADR 0002
 - [ ] Uptime pinger added
 - [ ] Demo repo has the App installed; a PR got a review in GitHub and in the dashboard
@@ -189,7 +189,7 @@ Behind Vercel and Render the TCP peer is a proxy. The container starts uvicorn w
 
 | Placeholder | Appears in |
 | --- | --- |
-| `codelens-gopika.vercel.app` | `infra/render.yaml` (`WEB_ORIGIN`), `README.md`, this file, the GitHub App settings, `API`-side Actions variable `WEB_URL` |
+| `codelens-blue.vercel.app` | `infra/render.yaml` (`WEB_ORIGIN`), `README.md`, this file, the GitHub App settings, `API`-side Actions variable `WEB_URL` |
 | `codelens-api-gopika.onrender.com` | `apps/web/vercel.json` (rewrite destination), `infra/render.yaml` (`API_ORIGIN`), `README.md`, this file, the App's webhook URL, Actions variable `API_URL` |
 | `codelens-api-gopika` (service name) | `infra/render.yaml` |
-| `codelens-gopika` (project name) | this file and the learning notes only; the Vercel project name is set in the dashboard |
+| `codelens-blue` (project name) | this file and the learning notes only; the Vercel project name is set in the dashboard |
