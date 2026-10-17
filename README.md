@@ -1,6 +1,6 @@
 # CodeLens
 
-AI code review for GitHub pull requests, plus chat with your repo: grounded answers with `file:line` citations.
+AI security review for GitHub pull requests. Findings are checked against the changed lines and posted as inline review comments, with a dashboard to browse and rate them and an evaluation harness that measures review quality. Chat with your repo is planned (M9) and not built yet.
 
 > **Status: under construction.** Done so far:
 >
@@ -42,7 +42,7 @@ flowchart LR
 
 The design is described in [CLAUDE.md](CLAUDE.md), section 4. Deploying it: [docs/deployment.md](docs/deployment.md).
 
-In one line: GitHub webhook → FastAPI (verify, record, enqueue, return `202`) → Postgres job queue → worker (LangGraph review pipeline) → review posted on the PR. A React dashboard and a streaming repo chat sit on top.
+In one line: GitHub webhook → FastAPI (verify, record, enqueue, return `202`) → Postgres job queue → worker (a single security agent behind the `ReviewAgents` pipeline interface, findings validated against the diff) → one review posted on the PR. A React dashboard sits on top. The LangGraph multi-agent pipeline (M10) and repo indexing and chat (M8, M9) are planned, not built.
 
 ## Quickstart (local)
 
