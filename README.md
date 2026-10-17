@@ -1,8 +1,21 @@
 # CodeLens
 
-AI code review for GitHub pull requests, plus chat with your repo: grounded answers with `file:line` citations.
+AI security review for GitHub pull requests. Findings are checked against the changed lines and posted as inline review comments, with a dashboard to browse and rate them and an evaluation harness that measures review quality. Chat with your repo is planned (M9) and not built yet.
 
-> **Status: under construction.** Milestones M0 to M7 are done and deployed: sign-in, webhook intake, the job worker, a first security agent that reviews PRs and posts inline comments, a dashboard, and a live deployment. See the checklist below.
+> **Status: under construction.** Done so far:
+>
+> - **The core product, deployed (M0 to M7):** sign-in, webhook intake, the job worker, a first security agent that reviews PRs and posts inline comments, a dashboard, and a live deployment.
+> - **An evaluation harness (M13):** it scores the security agent on a small labelled set of synthetic PRs. The results and their limits are in [docs/evals.md](docs/evals.md).
+>
+> Not built yet:
+>
+> - repo indexing and chat (M8, M9);
+> - the multi-agent review pipeline (M10);
+> - the observability and cost-control milestone (M11);
+> - test hardening (M12);
+> - the security hardening review (M14).
+>
+> See the checklist below.
 
 ## Live demo
 
@@ -29,7 +42,7 @@ flowchart LR
 
 The design is described in [CLAUDE.md](CLAUDE.md), section 4. Deploying it: [docs/deployment.md](docs/deployment.md).
 
-In one line: GitHub webhook → FastAPI (verify, record, enqueue, return `202`) → Postgres job queue → worker (LangGraph review pipeline) → review posted on the PR. A React dashboard and a streaming repo chat sit on top.
+In one line: GitHub webhook → FastAPI (verify, record, enqueue, return `202`) → Postgres job queue → worker (a single security agent behind the `ReviewAgents` pipeline interface, findings validated against the diff) → one review posted on the PR. A React dashboard sits on top. The LangGraph multi-agent pipeline (M10) and repo indexing and chat (M8, M9) are planned, not built.
 
 ## Quickstart (local)
 
@@ -125,7 +138,7 @@ cd apps/web && npm ci && npm run lint && npm run typecheck && npm test && npm ru
 - [ ] M10 LangGraph multi-agent review pipeline
 - [ ] M11 Observability, cost control and rate limiting
 - [ ] M12 Testing hardening and CI quality gates
-- [ ] M13 Evaluation harness
+- [x] M13 Evaluation harness
 - [ ] M14 Security hardening review
 - [ ] M15 Polish: docs, demo, résumé
 
