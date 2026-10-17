@@ -453,6 +453,8 @@ export interface components {
         };
         /** HealthResponse */
         HealthResponse: {
+            /** Commit */
+            commit: string | null;
             /**
              * Database
              * @enum {string}
