@@ -1,0 +1,82 @@
+name: Deploy
+
+# Runs only after the CI workflow has finished on main, and only deploys if it SUCCEEDED.
+# Render's own auto-deploy is off (infra/render.yaml) and so is Vercel's for main
+# (apps/web/vercel.json), so this workflow is the only way production changes.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch: # redeploy the current main by hand (Actions tab -> Deploy -> Run workflow)
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false # never abandon a deploy half-way
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy API + web, then smoke test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    env:
+      # Repository variables (Settings -> Secrets and variables -> Actions -> Variables).
+      API_URL: ${{ vars.API_URL }} # https://codelens-api-gopika.onrender.com
+      WEB_URL: ${{ vars.WEB_URL }} # https://codelens-gopika.vercel.app
+      # The commit CI tested (for a manual run: the commit it was started on).
+      SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+    steps:
+      - name: Check configuration
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+        run: |
+          for name in API_URL WEB_URL RENDER_DEPLOY_HOOK_URL VERCEL_DEPLOY_HOOK_URL; do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name is not set (see docs/deployment.md, section GitHub Actions)"
+              exit 1
+            fi
+          done
+
+      - name: Deploy the API on Render (this exact commit)
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          # The hook URL contains a secret key; -sS keeps curl quiet but still prints errors.
+          curl -sS --fail-with-body -X POST "${RENDER_DEPLOY_HOOK_URL}&ref=${SHA}"
+
+      - name: Deploy the web app on Vercel
+        env:
+          VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+        run: curl -sS --fail-with-body -X POST "${VERCEL_DEPLOY_HOOK_URL}"
+
+      - name: Smoke test - API reports the new commit and a healthy database
+        run: |
+          # A free instance may be asleep and a Docker build takes minutes: poll up to ~15 min.
+          # Matching on the commit means the OLD instance answering 200 cannot pass this step.
+          for i in $(seq 1 45); do
+            body=$(curl -sS --max-time 30 "$API_URL/health" || true)
+            echo "attempt $i: $body"
+            if [ "$(echo "$body" | jq -r '.commit // empty' 2>/dev/null)" = "$SHA" ] \
+               && [ "$(echo "$body" | jq -r '.database // empty' 2>/dev/null)" = "ok" ]; then
+              echo "API is live on $SHA"; exit 0
+            fi
+            sleep 20
+          done
+          echo "::error::API did not report commit $SHA with a healthy database in time"; exit 1
+
+      - name: Smoke test - web app and the /api rewrite
+        run: |
+          # /api/health goes browser-side path: Vercel -> rewrite -> Render, so this proves the
+          # proxy works as well as the web deployment itself.
+          for i in $(seq 1 30); do
+            web=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 "$WEB_URL/" || true)
+            api=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 "$WEB_URL/api/health" || true)
+            echo "attempt $i: web=$web api-through-vercel=$api"
+            if [ "$web" = "200" ] && [ "$api" = "200" ]; then exit 0; fi
+            sleep 20
+          done
+          echo "::error::web app or the /api rewrite did not become healthy"; exit 1
