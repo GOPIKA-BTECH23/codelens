@@ -125,7 +125,7 @@ cd apps/web && npm ci && npm run lint && npm run typecheck && npm test && npm ru
 - [ ] M10 LangGraph multi-agent review pipeline
 - [ ] M11 Observability, cost control and rate limiting
 - [ ] M12 Testing hardening and CI quality gates
-- [ ] M13 Evaluation harness
+- [x] M13 Evaluation harness
 - [ ] M14 Security hardening review
 - [ ] M15 Polish: docs, demo, résumé
 
