@@ -40,7 +40,13 @@ async def test_health_and_ready_report_database_and_revision(
     health, ready, ready_status = await asyncio.to_thread(call)
 
     head = _head(migrated_db)
-    assert health == {"status": "ok", "version": __version__, "database": "ok", "revision": head}
+    assert health == {
+        "status": "ok",
+        "version": __version__,
+        "database": "ok",
+        "revision": head,
+        "commit": None,
+    }
     assert (ready_status, ready) == (200, {"status": "ready", "revision": head})
 
 

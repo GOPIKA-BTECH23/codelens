@@ -25,6 +25,10 @@ class HealthResponse(BaseModel):
     database: Literal["ok", "unavailable"]
     # Current Alembic revision; null when the database is unreachable or not migrated.
     revision: str | None
+    # Git commit this instance was built from (Render sets RENDER_GIT_COMMIT); null locally.
+    # The deploy smoke test waits until this equals the commit it deployed, so an old
+    # instance that is still answering cannot make a failed deploy look green.
+    commit: str | None
 
 
 class ReadyResponse(BaseModel):
@@ -46,6 +50,7 @@ async def health(request: Request) -> HealthResponse:
         version=__version__,
         database="ok" if db.available else "unavailable",
         revision=db.revision,
+        commit=request.app.state.settings.release,
     )
 
 
