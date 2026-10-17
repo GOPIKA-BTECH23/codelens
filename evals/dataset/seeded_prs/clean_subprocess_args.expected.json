@@ -3,8 +3,8 @@
   "case": "clean_subprocess_args",
   "description": "Calls a converter with subprocess.run and an argument list (no shell) on a server-generated path. Looks like command injection but is not (false-positive check).",
   "source": "synthetic (model-drafted)",
-  "label_status": "draft",
-  "labelled_by": "model-drafted (Claude Opus 5.5 via Claude Code, 2026-10-17); NOT reviewed by a human. Review every label before moving this case to seeded_prs/.",
+  "label_status": "accepted",
+  "labelled_by": "labels drafted by Claude Opus 5.5 via Claude Code (2026-10-17); reviewed by Claude Sonnet 5.5 in chat (2026-10-17); accepted by the repository owner on the strength of that review, not independently labelled by a human",
   "pr": {
     "title": "Generate PDF thumbnails",
     "body": ""

@@ -1,6 +1,24 @@
 {
-  "status": "provisional",
-  "_about": "dev: may be looked at while changing prompts or the pipeline. test: held out; only run with --include-test, never used to choose between prompt versions. Provisional until the split is re-proposed and approved after the candidate cases are reviewed and added (M13).",
-  "dev": ["docs_only", "hardcoded_secret", "path_traversal", "sql_injection"],
-  "test": ["clean_change", "prompt_injection", "unsafe_deserialization"]
+  "status": "approved",
+  "_about": "dev: may be looked at while changing prompts or the pipeline. test: held out; only run with --include-test, never used to choose between prompt versions. Re-proposed 2026-10-17 after the candidate review and approved by the repository owner.",
+  "dev": [
+    "clean_env_secret",
+    "clean_safe_yaml",
+    "clean_subprocess_args",
+    "docs_only",
+    "eval_user_input",
+    "hardcoded_secret",
+    "path_traversal",
+    "sql_injection",
+    "weak_password_hash"
+  ],
+  "test": [
+    "clean_change",
+    "clean_safe_download",
+    "clean_sha256_cache_key",
+    "missing_authorization",
+    "prompt_injection",
+    "tls_verify_disabled",
+    "unsafe_deserialization"
+  ]
 }

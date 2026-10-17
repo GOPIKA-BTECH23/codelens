@@ -6,7 +6,7 @@ The pull requests the eval harness (`evals/run_evals.py`) scores the review pipe
 |---|---|---|
 | `seeded_prs/` | accepted cases: a diff plus human-accepted labels | yes |
 | `splits.json` | which accepted case is in `dev` and which in `test` | |
-| `candidates/` | 10 model-drafted cases (5 flawed, 5 clean) waiting for human review | **no** |
+| `candidates/` | model-drafted cases waiting for review (none right now) | **no** |
 
 Validate before every commit that touches the dataset:
 
@@ -17,8 +17,8 @@ uv run --project apps/api python -m evals.validate_dataset --candidates  # candi
 
 ## Size
 
-7 accepted cases: 5 with planted issues (8 required issues, 1 optional) and 2 clean (one with
-code, one documentation-only). That is tiny. Every report prints the sample size, and
+16 accepted cases: 9 with planted issues (12 required issues, 1 optional) and 7 clean
+(6 with code, 1 documentation-only). That is tiny. Every report prints the sample size, and
 `docs/evals.md` explains what such small numbers can and cannot tell you.
 
 ## Sources and licenses
@@ -31,8 +31,12 @@ code, one documentation-only). That is tiny. Every report prints the sample size
 - The 7 accepted cases were added in M5 (commit `4137554`) together with the first security
   agent. The project is built with an AI coding assistant, so treat them as author-curated,
   AI-assisted cases. `labelled_by` in each label file records this.
-- Cases in `candidates/` were drafted by a model (Claude, via Claude Code) in M13. Their
-  labels are drafts (`"label_status": "draft"`) until a human has reviewed every one.
+- Nine of the 16 cases were added in M13. They were drafted by a model (Claude Opus 5.5 via
+  Claude Code), their labels were reviewed by a second model session (Claude Sonnet 5.5, in
+  chat) and accepted by the repository owner on 2026-10-17. No human labelled them
+  independently, so read the ground truth with that in mind. One draft (`insecure_default`)
+  was dropped because its two labels sat one line apart in the same category, which the
+  +/-2 line tolerance would blur.
 
 ## How labels are made
 
@@ -92,8 +96,9 @@ the diff today.
   Test numbers are reported once a change has been decided on dev.
 
 **Honest caveat:** `security_v1` was written by someone who had seen all 7 original cases, so
-for that prompt the split is held out only from M13 onwards. The split is `provisional` until
-the candidate cases have been reviewed and added; it will be re-proposed then.
+for that prompt the split is held out only from M13 onwards. The split was re-proposed on 2026-10-17 once the reviewed cases were added, and approved by
+the repository owner. The 9 added cases were drafted by a model that had read the security
+prompt, so they may share its blind spots and are only weakly held out.
 
 ## Changing the dataset
 
