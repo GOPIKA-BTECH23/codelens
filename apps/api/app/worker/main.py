@@ -24,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.ai.llm.factory import build_llm, model_name
 from app.config import Settings, get_settings
 from app.core.logging import configure_logging, job_id_var, run_id_var
+from app.core.sentry import init_sentry
 from app.db.session import create_engine, create_session_factory
 from app.services.github_app import GitHubApp, load_private_key
 from app.services.jobs import Job, JobQueue, PostgresJobQueue
@@ -260,6 +261,7 @@ async def main() -> None:
     """Entry point of `python -m app.worker.main`."""
     settings = get_settings()
     configure_logging(settings.log_level)
+    init_sentry(settings)
     engine = create_engine(settings)
     session_factory = create_session_factory(engine)
 

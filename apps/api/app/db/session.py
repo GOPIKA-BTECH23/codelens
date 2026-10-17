@@ -17,8 +17,8 @@ def create_engine(settings: Settings) -> AsyncEngine:
     """Build the engine. It is lazy: no connection is made until the first query."""
     return create_async_engine(
         settings.database_url.get_secret_value(),
-        pool_size=10,
-        max_overflow=5,
+        pool_size=settings.db_pool_size,
+        max_overflow=settings.db_max_overflow,
         # Test each pooled connection before use, so a restarted database does not surface
         # as one failed request.
         pool_pre_ping=True,

@@ -15,7 +15,18 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import __version__
-from app.api import analytics, auth, findings, health, installations, me, pulls, repos, webhooks
+from app.api import (
+    analytics,
+    auth,
+    debug_sse,
+    findings,
+    health,
+    installations,
+    me,
+    pulls,
+    repos,
+    webhooks,
+)
 from app.config import Settings, get_settings
 from app.core.csrf import CSRF_HEADER, CsrfMiddleware
 from app.core.errors import register_error_handlers
@@ -23,6 +34,7 @@ from app.core.headers import SecurityHeadersMiddleware
 from app.core.logging import configure_logging
 from app.core.middleware import REQUEST_ID_HEADER, RequestIdMiddleware
 from app.core.rate_limit import PostgresRateLimiter
+from app.core.sentry import init_sentry
 from app.db.session import create_engine, create_session_factory
 from app.services.jobs import PostgresJobQueue
 from app.worker.main import build_worker, review_resources
@@ -32,6 +44,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     """Build the app. Raises pydantic.ValidationError at startup if required config is missing."""
     settings = settings or get_settings()
     configure_logging(settings.log_level)
+    if init_sentry(settings):
+        logging.getLogger("app").info("sentry enabled")
 
     # The engine is lazy (no connection yet), so building the app never needs a live database.
     engine = create_engine(settings)
@@ -104,6 +118,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(findings.router)
     app.include_router(analytics.router)
     app.include_router(webhooks.router)
+    if settings.debug_sse_enabled:
+        app.include_router(debug_sse.router)  # TEMPORARY (M7), see ADR 0002
 
     logging.getLogger("app").info("api started", extra={"version": __version__})
     return app

@@ -17,6 +17,7 @@ dependencies = [
     "httpx==0.28.1",  # outbound GitHub calls (respx mocks this client in tests)
     "google-genai==2.31.0",
     "groq==1.7.0",
+    "sentry-sdk[fastapi]==2.72.0"  # optional error reporting (M7),
 ]
 
 [dependency-groups]
