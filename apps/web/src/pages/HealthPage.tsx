@@ -18,7 +18,7 @@ export function HealthPage() {
         <ThemeToggle />
       </div>
       <h1 className="mt-8 text-2xl font-semibold tracking-tight text-fg">System status</h1>
-      <p className="mt-1 text-sm text-muted">AI code review and repo chat.</p>
+      <p className="mt-1 text-sm text-muted">AI security review for GitHub pull requests.</p>
 
       <section aria-labelledby="health-heading" className="mt-6">
         <Card>
