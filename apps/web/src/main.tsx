@@ -6,6 +6,7 @@ import { ApiError } from './api/client'
 import { App } from './App'
 import { AuthProvider } from './auth/AuthProvider'
 import { ToastProvider } from './components/ToastProvider'
+import { initSentry } from './lib/sentry'
 import { ThemeProvider } from './theme/ThemeProvider'
 // Inter, self-hosted (variable weight; the browser downloads only the subsets a page uses).
 import '@fontsource-variable/inter'
@@ -21,6 +22,8 @@ const queryClient = new QueryClient({
     },
   },
 })
+void initSentry() // no-op unless VITE_SENTRY_DSN is set at build time
+
 const container = document.getElementById('root')
 if (!container) throw new Error('Missing #root element')
 

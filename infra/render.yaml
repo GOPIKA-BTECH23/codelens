@@ -1,0 +1,61 @@
+# Render Blueprint for the CodeLens API (free plan). Create it once:
+#   Render dashboard -> New -> Blueprint -> pick this repo -> (path) infra/render.yaml
+# Every `sync: false` variable is asked for ONCE at creation and never stored here. To add or
+# change a secret later, use the service's Environment tab. docs/deployment.md has the full
+# table of what each variable is and where to get it.
+#
+# Free web services get 0.1 CPU and 512 MB RAM, sleep after 15 minutes without traffic
+# (a cold start takes about a minute) and have no background-worker equivalent, so the job
+# worker runs INSIDE this service (RUN_WORKER_IN_API=true, CLAUDE.md decision 3, ADR 0004).
+services:
+  - type: web
+    name: codelens-api-gopika
+    runtime: docker
+    plan: free
+    region: singapore # keep it the same as your Supabase project's region
+    dockerContext: apps/api
+    dockerfilePath: apps/api/Dockerfile
+    # Deploys happen ONLY through the deploy hook that .github/workflows/deploy.yml calls
+    # after CI is green. `off` means a push to main never deploys by itself.
+    autoDeployTrigger: 'off'
+    healthCheckPath: /health
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+      - key: RUN_WORKER_IN_API
+        value: 'true'
+      # One uvicorn process; the worker shares its event loop (ADR 0004).
+      - key: WORKER_CONCURRENCY
+        value: '1'
+      # Supabase's session pooler allows few client connections on the free tier.
+      - key: DB_POOL_SIZE
+        value: '3'
+      - key: DB_MAX_OVERFLOW
+        value: '2'
+      - key: DAILY_COST_CAP_USD
+        value: '1'
+      - key: LLM_PROVIDER
+        value: groq
+      - key: WEB_ORIGIN
+        value: https://codelens-gopika.vercel.app
+      - key: API_ORIGIN
+        value: https://codelens-api-gopika.onrender.com
+      # --- secrets: asked for once, at Blueprint creation ---
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: GITHUB_OAUTH_CLIENT_ID
+        sync: false
+      - key: GITHUB_OAUTH_CLIENT_SECRET
+        sync: false
+      - key: GITHUB_WEBHOOK_SECRET
+        sync: false
+      - key: GITHUB_APP_PRIVATE_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: SENTRY_DSN
+        sync: false # optional: leave empty to keep Sentry off

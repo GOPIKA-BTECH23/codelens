@@ -46,6 +46,19 @@ class Settings(BaseSettings):
     environment: Literal["development", "test", "production"] = "production"
     # Not a free setting: it must equal the column size baked into the schema.
     embedding_dim: int = EMBEDDING_DIM
+    # Connection pool per process. Supabase's session pooler allows few client connections on
+    # the free tier, so production sets these low (docs/deployment.md).
+    db_pool_size: int = Field(default=10, ge=1, le=50)
+    db_max_overflow: int = Field(default=5, ge=0, le=50)
+
+    # --- Error reporting (M7) ---
+    # Empty = Sentry is off and nothing is sent anywhere.
+    sentry_dsn: SecretStr | None = None
+    # Shown in Sentry next to each error (Render sets RENDER_GIT_COMMIT; empty is fine).
+    release: str | None = Field(default=None, validation_alias="RENDER_GIT_COMMIT")
+    # TEMPORARY (M7): serve /debug/sse to test streaming through the Vercel rewrite. Off by
+    # default; the endpoint is deleted once ADR 0002 records the result.
+    debug_sse_enabled: bool = False
 
     # --- Sessions (M2) ---
     # Signs our access JWTs and the OAuth state cookie. Rotating it logs everyone out.
@@ -209,7 +222,13 @@ class Settings(BaseSettings):
         return value
 
     @field_validator(
-        "github_app_private_key", "groq_api_key", "gemini_api_key", "llm_model", mode="before"
+        "github_app_private_key",
+        "groq_api_key",
+        "gemini_api_key",
+        "llm_model",
+        "sentry_dsn",
+        "release",
+        mode="before",
     )
     @classmethod
     def _empty_means_unset(cls, value: object) -> object:

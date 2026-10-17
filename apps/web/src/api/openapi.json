@@ -212,6 +212,17 @@
       },
       "HealthResponse": {
         "properties": {
+          "commit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commit"
+          },
           "database": {
             "enum": [
               "ok",
@@ -245,7 +256,8 @@
           "status",
           "version",
           "database",
-          "revision"
+          "revision",
+          "commit"
         ],
         "title": "HealthResponse",
         "type": "object"
