@@ -1,0 +1,18 @@
+diff --git a/app/thumbnails.py b/app/thumbnails.py
+index 5e3bd3e..9502b51 100644
+--- a/app/thumbnails.py
++++ b/app/thumbnails.py
+@@ -5,3 +5,13 @@ import uuid
+ from pathlib import Path
+ 
+ THUMB_DIR = Path("/srv/thumbs")
++
++
++def pdf_thumbnail(pdf_path: Path) -> Path:
++    out = THUMB_DIR / f"{uuid.uuid4().hex}.png"
++    subprocess.run(
++        ["pdftoppm", "-png", "-singlefile", "-scale-to", "256", str(pdf_path), str(out.with_suffix(""))],
++        check=True,
++        timeout=30,
++    )
++    return out

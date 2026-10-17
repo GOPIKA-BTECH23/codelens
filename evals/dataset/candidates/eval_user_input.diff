@@ -1,0 +1,14 @@
+diff --git a/app/calc.py b/app/calc.py
+index 1bb1ff3..18892af 100644
+--- a/app/calc.py
++++ b/app/calc.py
+@@ -8,3 +8,9 @@ app = Flask(__name__)
+ @app.route("/ping")
+ def ping():
+     return jsonify(ok=True)
++
++
++@app.route("/calc")
++def calc():
++    expression = request.args.get("expr", "0")
++    return jsonify(result=eval(expression))

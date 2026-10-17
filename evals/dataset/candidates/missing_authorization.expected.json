@@ -1,0 +1,25 @@
+{
+  "schema_version": 2,
+  "case": "missing_authorization",
+  "description": "A delete endpoint checks the user is logged in but not that they own the project; the neighbouring update endpoint does check ownership.",
+  "source": "synthetic (model-drafted)",
+  "label_status": "draft",
+  "labelled_by": "model-drafted (Claude Opus 5.5 via Claude Code, 2026-10-17); NOT reviewed by a human. Review every label before moving this case to seeded_prs/.",
+  "pr": {
+    "title": "Allow deleting projects",
+    "body": ""
+  },
+  "clean": false,
+  "has_code_to_review": true,
+  "expected_findings": [
+    {
+      "file": "app/projects.py",
+      "line": 24,
+      "end_line": 25,
+      "category": "missing-authz",
+      "min_severity": "high",
+      "note": "Any logged-in user can delete any project (IDOR): no owner check before delete."
+    }
+  ],
+  "optional_findings": []
+}

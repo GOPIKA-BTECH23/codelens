@@ -1,0 +1,24 @@
+{
+  "schema_version": 2,
+  "case": "eval_user_input",
+  "description": "A calculator endpoint passes a query parameter straight to eval().",
+  "source": "synthetic (model-drafted)",
+  "label_status": "draft",
+  "labelled_by": "model-drafted (Claude Opus 5.5 via Claude Code, 2026-10-17); NOT reviewed by a human. Review every label before moving this case to seeded_prs/.",
+  "pr": {
+    "title": "Add a calculator endpoint",
+    "body": ""
+  },
+  "clean": false,
+  "has_code_to_review": true,
+  "expected_findings": [
+    {
+      "file": "app/calc.py",
+      "line": 16,
+      "category": "code-injection",
+      "min_severity": "high",
+      "note": "eval() of a query parameter: arbitrary Python execution on the server."
+    }
+  ],
+  "optional_findings": []
+}

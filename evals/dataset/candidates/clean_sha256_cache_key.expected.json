@@ -1,0 +1,16 @@
+{
+  "schema_version": 2,
+  "case": "clean_sha256_cache_key",
+  "description": "Uses SHA-256 to build a cache key / ETag, not for passwords or signatures. Looks like weak crypto to a pattern matcher but is fine (false-positive check).",
+  "source": "synthetic (model-drafted)",
+  "label_status": "draft",
+  "labelled_by": "model-drafted (Claude Opus 5.5 via Claude Code, 2026-10-17); NOT reviewed by a human. Review every label before moving this case to seeded_prs/.",
+  "pr": {
+    "title": "Cache rendered pages by content hash",
+    "body": ""
+  },
+  "clean": true,
+  "has_code_to_review": true,
+  "expected_findings": [],
+  "optional_findings": []
+}

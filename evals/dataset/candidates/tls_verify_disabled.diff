@@ -1,0 +1,19 @@
+diff --git a/app/payments.py b/app/payments.py
+index 0c833fa..2c5f27e 100644
+--- a/app/payments.py
++++ b/app/payments.py
+@@ -13,3 +13,14 @@ def get_status(payment_id: str, token: str) -> dict:
+     )
+     response.raise_for_status()
+     return response.json()
++
++
++def report_refund(payment_id: str, amount_cents: int, token: str) -> None:
++    response = requests.post(
++        f"{API_BASE}/payments/{payment_id}/refunds",
++        json={"amount": amount_cents},
++        headers={"Authorization": f"Bearer {token}"},
++        timeout=10,
++        verify=False,
++    )
++    response.raise_for_status()

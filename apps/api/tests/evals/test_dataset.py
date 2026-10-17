@@ -10,6 +10,7 @@ from typing import Any
 import pytest
 
 from evals.harness.dataset import (
+    CANDIDATES_DIR,
     SEEDED_DIR,
     dataset_version,
     describe,
@@ -18,15 +19,39 @@ from evals.harness.dataset import (
 )
 from evals.validate_dataset import main as validate_main
 
+ORIGINAL_SEVEN = {
+    "clean_change",
+    "docs_only",
+    "hardcoded_secret",
+    "path_traversal",
+    "prompt_injection",
+    "sql_injection",
+    "unsafe_deserialization",
+}
+
 
 def test_committed_dataset_is_valid() -> None:
     dataset = load_dataset()
-    assert len(dataset.cases) == 7
-    assert describe(dataset.cases) == (
+    assert len(dataset.cases) == len(list(SEEDED_DIR.glob("*.diff")))
+    assert {c.split for c in dataset.cases} == {"dev", "test"}
+    assert all(c.labels.label_status == "accepted" for c in dataset.cases)
+    assert validate_main([]) == 0
+
+
+def test_sample_size_line() -> None:
+    original = [c for c in load_dataset().cases if c.name in ORIGINAL_SEVEN]
+    assert describe(original) == (
         "7 cases (5 with issues, 2 clean [1 with code]), 8 required issues, 1 optional"
     )
-    assert {c.split for c in dataset.cases} == {"dev", "test"}
-    assert validate_main([]) == 0
+
+
+def test_candidates_are_valid_drafts_and_never_scored() -> None:
+    cases, problems = validate_dataset(CANDIDATES_DIR, splits_file=None, allow_drafts=True)
+    assert problems == []
+    assert cases and all(c.labels.label_status == "draft" for c in cases)
+    assert validate_main(["--candidates"]) == 0
+    scored = {c.name for c in load_dataset().cases}
+    assert scored.isdisjoint(c.name for c in cases)
 
 
 def test_select_by_split_and_name() -> None:

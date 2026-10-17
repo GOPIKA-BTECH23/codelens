@@ -1,0 +1,17 @@
+diff --git a/app/projects.py b/app/projects.py
+index d56892c..0d2509a 100644
+--- a/app/projects.py
++++ b/app/projects.py
+@@ -16,3 +16,12 @@ def rename_project(project_id: int):
+     project.name = request.json["name"]
+     db.session.commit()
+     return {"id": project.id, "name": project.name}
++
++
++@app.route("/projects/<int:project_id>", methods=["DELETE"])
++@login_required
++def delete_project(project_id: int):
++    project = Project.query.get_or_404(project_id)
++    db.session.delete(project)
++    db.session.commit()
++    return "", 204

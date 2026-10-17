@@ -1,0 +1,17 @@
+diff --git a/app/files.py b/app/files.py
+index fd64b70..bebb6cb 100644
+--- a/app/files.py
++++ b/app/files.py
+@@ -6,3 +6,12 @@ from flask import Flask, abort, request, send_file
+ 
+ app = Flask(__name__)
+ UPLOAD_DIR = Path("/srv/uploads").resolve()
++
++
++@app.route("/download")
++def download():
++    name = request.args.get("name", "")
++    path = (UPLOAD_DIR / name).resolve()
++    if not path.is_relative_to(UPLOAD_DIR) or not path.is_file():
++        abort(404)
++    return send_file(path)

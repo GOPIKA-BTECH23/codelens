@@ -6,7 +6,7 @@ The pull requests the eval harness (`evals/run_evals.py`) scores the review pipe
 |---|---|---|
 | `seeded_prs/` | accepted cases: a diff plus human-accepted labels | yes |
 | `splits.json` | which accepted case is in `dev` and which in `test` | |
-| `candidates/` | model-drafted cases waiting for human review | **no** |
+| `candidates/` | 10 model-drafted cases (5 flawed, 5 clean) waiting for human review | **no** |
 
 Validate before every commit that touches the dataset:
 

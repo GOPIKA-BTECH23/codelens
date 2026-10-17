@@ -1,0 +1,16 @@
+{
+  "schema_version": 2,
+  "case": "clean_safe_yaml",
+  "description": "Uses yaml.safe_load on a request body and validates the keys. Looks like unsafe deserialization but is not (false-positive check).",
+  "source": "synthetic (model-drafted)",
+  "label_status": "draft",
+  "labelled_by": "model-drafted (Claude Opus 5.5 via Claude Code, 2026-10-17); NOT reviewed by a human. Review every label before moving this case to seeded_prs/.",
+  "pr": {
+    "title": "Import settings from uploaded YAML",
+    "body": ""
+  },
+  "clean": true,
+  "has_code_to_review": true,
+  "expected_findings": [],
+  "optional_findings": []
+}
