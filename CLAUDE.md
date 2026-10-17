@@ -4,6 +4,8 @@
 
 ## 1. What CodeLens is
 
+> This section describes the target design. The status block at the top of `README.md` lists what is actually built (M0 to M7 and M13 so far).
+
 CodeLens is an AI code-review and repo-intelligence platform. It has two products on one platform:
 
 1. **Automated PR review.** A GitHub App receives `pull_request` webhooks, runs a multi-agent LangGraph pipeline (security, style/quality, test-gap, summarizer) over the diff, and posts inline review comments plus a summary on the PR.
