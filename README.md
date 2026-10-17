@@ -2,7 +2,20 @@
 
 AI code review for GitHub pull requests, plus chat with your repo: grounded answers with `file:line` citations.
 
-> **Status: under construction.** Milestones M0 to M7 are done and deployed: sign-in, webhook intake, the job worker, a first security agent that reviews PRs and posts inline comments, a dashboard, and a live deployment. See the checklist below.
+> **Status: under construction.** Done so far:
+>
+> - **The core product, deployed (M0 to M7):** sign-in, webhook intake, the job worker, a first security agent that reviews PRs and posts inline comments, a dashboard, and a live deployment.
+> - **An evaluation harness (M13):** it scores the security agent on a small labelled set of synthetic PRs. The results and their limits are in [docs/evals.md](docs/evals.md).
+>
+> Not built yet:
+>
+> - repo indexing and chat (M8, M9);
+> - the multi-agent review pipeline (M10);
+> - the observability and cost-control milestone (M11);
+> - test hardening (M12);
+> - the security hardening review (M14).
+>
+> See the checklist below.
 
 ## Live demo
 
