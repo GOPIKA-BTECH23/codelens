@@ -23,6 +23,7 @@ def test_health_is_200_with_database_unavailable_when_postgres_is_down(settings:
         "version": __version__,
         "database": "unavailable",
         "revision": None,
+        "commit": None,
     }
 
 
