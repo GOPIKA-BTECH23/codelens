@@ -7,7 +7,7 @@ import { PageHeader } from '../components/PageHeader'
 import { Pagination } from '../components/Pagination'
 import { RepoSettingsForm } from '../components/RepoSettingsForm'
 import { EmptyState, ErrorState } from '../components/States'
-import { IndexBadge, PrStateBadge, RunStatusBadge } from '../components/StatusBadges'
+import { PrStateBadge, RunStatusBadge } from '../components/StatusBadges'
 import { Badge } from '../components/ui/Badge'
 import { Card, CardHeader } from '../components/ui/Card'
 import { Select } from '../components/ui/Field'
@@ -46,8 +46,8 @@ function PullRow({ pull }: { pull: PullOut }) {
         <PrStateBadge state={pull.state} />
         {run ? (
           <>
-            <RunStatusBadge status={run.status} />
-            {run.status === 'succeeded' && (
+            <RunStatusBadge status={run.status} reviewPosted={run.review_posted} />
+            {run.status === 'succeeded' && run.review_posted && (
               <span className="ml-1 text-xs text-muted tabular-nums">
                 {run.findings_count} {run.findings_count === 1 ? 'finding' : 'findings'}
               </span>
@@ -78,12 +78,7 @@ export function RepoPage() {
       <PageHeader
         crumbs={[{ label: 'Dashboard', to: '/dashboard' }, { label: repo.data.full_name }]}
         title={repo.data.full_name}
-        badges={
-          <>
-            {repo.data.is_private && <Badge tone="neutral">Private</Badge>}
-            <IndexBadge status={repo.data.index_status} />
-          </>
-        }
+        badges={repo.data.is_private && <Badge tone="neutral">Private</Badge>}
         meta={
           <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
             <span className="inline-flex items-center gap-1">

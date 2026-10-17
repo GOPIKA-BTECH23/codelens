@@ -42,6 +42,7 @@ async def latest_runs(
             ReviewRun.id,
             ReviewRun.status,
             ReviewRun.created_at,
+            ReviewRun.github_review_id,
             PullRequest.id.label("pull_id"),
             PullRequest.number,
             PullRequest.title,
@@ -59,6 +60,7 @@ async def latest_runs(
             pull_request_id=r.pull_id,
             pull_number=r.number,
             pull_title=r.title,
+            review_posted=r.github_review_id is not None,
         )
         for r in rows
     }

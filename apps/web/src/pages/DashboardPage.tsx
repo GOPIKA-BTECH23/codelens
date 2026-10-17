@@ -7,7 +7,7 @@ import { useAuth } from '../auth/context'
 import { PageHeader } from '../components/PageHeader'
 import { Pagination } from '../components/Pagination'
 import { EmptyState, ErrorState } from '../components/States'
-import { IndexBadge, RunStatusBadge } from '../components/StatusBadges'
+import { RunStatusBadge } from '../components/StatusBadges'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Card, CardHeader } from '../components/ui/Card'
@@ -60,8 +60,7 @@ function RepoRow({ repo }: { repo: RepoOut }) {
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-1.5 pl-11 sm:pl-0">
-        {run && <RunStatusBadge status={run.status} />}
-        <IndexBadge status={repo.index_status} />
+        {run && <RunStatusBadge status={run.status} reviewPosted={run.review_posted} />}
       </div>
     </li>
   )

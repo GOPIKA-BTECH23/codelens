@@ -333,6 +333,30 @@ async def test_settings_default_merge_and_validation(world: World) -> None:
 # --- pulls and the review page --------------------------------------------------------------
 
 
+async def test_review_posted_follows_github_review_id(
+    world: World, session_factory: Factory
+) -> None:
+    """A run that succeeded without posting a review (the M4 stub) is not "reviewed"."""
+    repo, pull = world.repo["api"], world.pull["api"]
+
+    def flags() -> tuple[bool, bool, bool]:
+        listed = next(i for i in world.alice.get("/repos").json()["items"] if i["id"] == str(repo))
+        pulls = world.alice.get(f"/repos/{repo}/pulls").json()["items"]
+        return (
+            listed["latest_run"]["review_posted"],
+            pulls[0]["latest_run"]["review_posted"],
+            world.alice.get(f"/pulls/{pull}/review").json()["run"]["review_posted"],
+        )
+
+    assert flags() == (False, False, False)
+    async with session_factory.begin() as s:
+        run = (
+            await s.execute(select(ReviewRun).where(ReviewRun.pull_request_id == pull))
+        ).scalar_one()
+        run.github_review_id = 1234
+    assert flags() == (True, True, True)
+
+
 async def test_pull_list_filters_by_state_and_shows_open_findings(
     world: World, session_factory: Factory
 ) -> None:
