@@ -56,9 +56,6 @@ class Settings(BaseSettings):
     sentry_dsn: SecretStr | None = None
     # Shown in Sentry next to each error (Render sets RENDER_GIT_COMMIT; empty is fine).
     release: str | None = Field(default=None, validation_alias="RENDER_GIT_COMMIT")
-    # TEMPORARY (M7): serve /debug/sse to test streaming through the Vercel rewrite. Off by
-    # default; the endpoint is deleted once ADR 0002 records the result.
-    debug_sse_enabled: bool = False
 
     # --- Sessions (M2) ---
     # Signs our access JWTs and the OAuth state cookie. Rotating it logs everyone out.

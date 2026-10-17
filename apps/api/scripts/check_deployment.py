@@ -6,8 +6,9 @@ Checks, all through the web origin (the way a browser reaches the API):
   1. /api/health answers JSON from the API and is not cached by Vercel.
   2. The OAuth start sets a host-only, HttpOnly, Secure, SameSite=Lax cookie (cookies survive
      the proxy; the login redirect is not followed).
-  3. /api/debug/sse (needs DEBUG_SSE_ENABLED=true on Render) delivers events one by one, not
-     all at the end: streaming survives the Vercel rewrite.
+  3. /api/debug/sse delivers events one by one, not all at the end: streaming survives the
+     Vercel rewrite. The endpoint was temporary and has been removed (ADR 0002), so this check
+     is SKIPPED when it answers 404. It runs again only if a stream endpoint exists at that path.
 Exit code 0 only if everything passed. Prints evidence so it can be pasted into the ADR.
 """
 
@@ -70,8 +71,11 @@ def check_sse(base: str, count: int = 8) -> bool:
     conn = http.client.HTTPSConnection(url.netloc, timeout=90)
     conn.request("GET", f"{url.path}?{url.query}", headers={"Accept": "text/event-stream"})
     resp = conn.getresponse()
+    if resp.status == 404:
+        print("[sse] SKIP: /api/debug/sse does not exist (removed after the ADR 0002 result)")
+        return True
     if resp.status != 200:
-        print(f"[sse] status {resp.status}: is DEBUG_SSE_ENABLED=true on Render?")
+        print(f"[sse] FAIL: status {resp.status}")
         return False
     start = time.monotonic()
     arrivals: list[float] = []
