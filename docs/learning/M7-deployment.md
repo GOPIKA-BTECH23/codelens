@@ -8,7 +8,7 @@
 - `apps/web/vercel.json`: the `/api/*` rewrite to Render, no rewrite caching, SPA fallback, security headers, auto-deploy **off** for `main`.
 - `.github/workflows/deploy.yml`: after CI succeeds on `main`, call the Render and Vercel deploy hooks, then smoke test.
 - Sentry (optional, off without a DSN) in the API, worker and web app, with scrubbing that is unit tested.
-- `/health` now returns `commit`; `scripts/check_deployment.py` checks cookies, caching and SSE through Vercel; temporary `/debug/sse` behind `DEBUG_SSE_ENABLED`.
+- `/health` now returns `commit`; `scripts/check_deployment.py` checks cookies and caching through Vercel (its SSE check was run once against a temporary `/debug/sse` endpoint, which has since been removed).
 - `docs/deployment.md` (env var table, rollback, secret rotation, App settings), ADR 0002 section.
 
 ## What each hosting piece does

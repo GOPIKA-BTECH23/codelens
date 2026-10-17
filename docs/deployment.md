@@ -71,7 +71,6 @@ Set by `infra/render.yaml`: the rows with a fixed value are in the file; the sec
 | `GROQ_API_KEY` | console.groq.com → API keys | **yes** |
 | `SENTRY_DSN` | leave empty: Sentry stays off | no |
 | `RENDER_GIT_COMMIT` | set by Render itself; shown in `/health` | no |
-| `DEBUG_SSE_ENABLED` | **temporary**: `true` only while running the streaming check below; delete afterwards | no |
 
 Not needed in production: `GEMINI_API_KEY`, `EMBEDDING_*` (M8), `LANGFUSE_*` (M11), `POSTGRES_*` (compose only).
 
@@ -180,8 +179,8 @@ Behind Vercel and Render the TCP peer is a proxy. The container starts uvicorn w
 - [ ] Render Blueprint created; `/health` shows `database: ok` and a `commit`
 - [ ] Vercel project `codelens-blue` created from this repo (Root Directory `apps/web`)
 - [ ] GitHub Actions secrets and variables set
-- [ ] `uv run python -m scripts.check_deployment https://codelens-blue.vercel.app` passes (needs `DEBUG_SSE_ENABLED=true` once)
-- [ ] `DEBUG_SSE_ENABLED` removed from Render, results pasted into ADR 0002
+- [ ] `uv run python -m scripts.check_deployment https://codelens-blue.vercel.app` passes (health, cookie; SSE is skipped because the debug endpoint is gone)
+- [ ] Results pasted into ADR 0002
 - [ ] Uptime pinger added
 - [ ] Demo repo has the App installed; a PR got a review in GitHub and in the dashboard
 

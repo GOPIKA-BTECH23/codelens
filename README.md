@@ -2,13 +2,15 @@
 
 AI code review for GitHub pull requests, plus chat with your repo: grounded answers with `file:line` citations.
 
-> **Status: under construction.** Milestones M0 to M7 are done in code: sign-in, webhook intake, the job worker, a first security agent that reviews PRs and posts inline comments, a dashboard, and deployment config. See the checklist below.
+> **Status: under construction.** Milestones M0 to M7 are done and deployed: sign-in, webhook intake, the job worker, a first security agent that reviews PRs and posts inline comments, a dashboard, and a live deployment. See the checklist below.
 
 ## Live demo
 
-- **App:** https://codelens-blue.vercel.app _(live once the manual steps in [docs/deployment.md](docs/deployment.md) are done)_
+- **App:** https://codelens-blue.vercel.app
 - **Demo repository (install the GitHub App here, open a PR):** `https://github.com/GOPIKA-BTECH23/<demo-repo>` _(set after you create it)_
 - **First load may take about a minute.** The API runs on a free Render instance that sleeps after 15 minutes without traffic. Reviews can also be delayed if a webhook arrives while it sleeps; the demo is for public or demo repositories only (every reviewed diff is sent to the LLM provider).
+
+**What has been verified on the live deployment** (2026-10-17, details in [ADR 0002](docs/adr/0002-cookie-and-csrf-strategy.md)): `/api/health` reports database ok and is not cached; the OAuth cookie is set HttpOnly, Secure, SameSite=Lax through the Vercel rewrite; a test stream through the rewrite arrived event by event (SSE is not buffered). A full sign-in and a real PR review were also tested manually. Not yet verified: the real chat stream (M9), since chat does not exist yet.
 
 Hosting: Vercel (web) · Render (API + worker in one free service) · Supabase (Postgres + pgvector) · GitHub Actions (CI, then a gated deploy with a smoke test).
 
@@ -117,7 +119,7 @@ cd apps/web && npm ci && npm run lint && npm run typecheck && npm test && npm ru
 - [x] M4 Worker and job processing
 - [x] M5 LLM layer and the first agent
 - [x] M6 Frontend dashboard and review pages
-- [x] M7 Deploy the MVP (config, CI/CD and docs done; go-live is the manual checklist in docs/deployment.md)
+- [x] M7 Deploy the MVP (live at https://codelens-blue.vercel.app)
 - [ ] M8 Repo indexing
 - [ ] M9 Hybrid retrieval and streaming repo chat
 - [ ] M10 LangGraph multi-agent review pipeline

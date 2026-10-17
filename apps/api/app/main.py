@@ -18,7 +18,6 @@ from app import __version__
 from app.api import (
     analytics,
     auth,
-    debug_sse,
     findings,
     health,
     installations,
@@ -118,8 +117,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(findings.router)
     app.include_router(analytics.router)
     app.include_router(webhooks.router)
-    if settings.debug_sse_enabled:
-        app.include_router(debug_sse.router)  # TEMPORARY (M7), see ADR 0002
 
     logging.getLogger("app").info("api started", extra={"version": __version__})
     return app
