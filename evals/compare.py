@@ -5,6 +5,7 @@ uv run --project apps/api python -m evals.compare evals/results/A.json evals/res
 """
 
 import argparse
+import io
 import sys
 from pathlib import Path
 
@@ -21,6 +22,10 @@ def main(argv: list[str] | None = None) -> int:
     text = render_compare(load_result(args.a), load_result(args.b))
     if args.out:
         args.out.write_text(text, encoding="utf-8", newline="\n")
+    # The markdown has non-ASCII (→, Δ, –); a Windows console defaults to cp1252 and would
+    # raise UnicodeEncodeError, so write UTF-8 whatever the console's code page.
+    if isinstance(sys.stdout, io.TextIOWrapper):
+        sys.stdout.reconfigure(encoding="utf-8")
     sys.stdout.write(text)
     return 0
 
