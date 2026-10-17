@@ -103,4 +103,6 @@ class AgentResult(BaseModel):
     model: str
     chunks_total: int
     chunks_failed: int
+    calls: int = 0  # model calls that returned an answer (valid or not)
+    invalid_outputs: int = 0  # of those, answers that failed schema validation
     usage: list[LLMUsage] = Field(default_factory=list)

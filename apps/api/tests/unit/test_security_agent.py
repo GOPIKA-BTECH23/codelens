@@ -35,6 +35,7 @@ async def test_valid_answer_on_first_try() -> None:
     assert result.prompt_version == "security_v1"
     assert (result.chunks_total, result.chunks_failed) == (1, 0)
     assert len(usage) == 1 and result.usage == usage
+    assert (result.calls, result.invalid_outputs) == (1, 0)
 
 
 async def test_malformed_output_is_retried_with_the_problem_named() -> None:
@@ -49,6 +50,7 @@ async def test_malformed_output_is_retried_with_the_problem_named() -> None:
     assert len(result.findings) == 2 and result.chunks_failed == 0
     assert len(llm.calls) == 3
     assert len(usage) == 3  # the two rejected answers were still paid for
+    assert (result.calls, result.invalid_outputs) == (3, 2)  # what the evals' rate is built on
     retry_note = llm.calls[2].messages[-1].content
     assert "findings.0.severity" in retry_note  # the model is told WHERE it went wrong
     assert "catastrophic" not in retry_note  # ... but its output is not echoed back
@@ -65,6 +67,7 @@ async def test_chunk_fails_gracefully_after_two_retries_and_others_still_count()
 
     assert MAX_RETRIES == 2 and len(llm.calls) == 4
     assert (result.chunks_total, result.chunks_failed) == (2, 1)
+    assert (result.calls, result.invalid_outputs) == (4, 3)
     assert {f.file for f in result.findings} == {"app/config.py"}  # the SQL chunk failed
 
 
