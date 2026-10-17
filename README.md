@@ -6,7 +6,7 @@ AI code review for GitHub pull requests, plus chat with your repo: grounded answ
 
 ## Live demo
 
-- **App:** https://codelens-gopika.vercel.app _(live once the manual steps in [docs/deployment.md](docs/deployment.md) are done)_
+- **App:** https://codelens-blue.vercel.app _(live once the manual steps in [docs/deployment.md](docs/deployment.md) are done)_
 - **Demo repository (install the GitHub App here, open a PR):** `https://github.com/GOPIKA-BTECH23/<demo-repo>` _(set after you create it)_
 - **First load may take about a minute.** The API runs on a free Render instance that sleeps after 15 minutes without traffic. Reviews can also be delayed if a webhook arrives while it sleeps; the demo is for public or demo repositories only (every reviewed diff is sent to the LLM provider).
 

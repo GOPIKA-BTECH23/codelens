@@ -39,7 +39,7 @@ services:
       - key: LLM_PROVIDER
         value: groq
       - key: WEB_ORIGIN
-        value: https://codelens-gopika.vercel.app
+        value: https://codelens-blue.vercel.app
       - key: API_ORIGIN
         value: https://codelens-api-gopika.onrender.com
       # --- secrets: asked for once, at Blueprint creation ---
