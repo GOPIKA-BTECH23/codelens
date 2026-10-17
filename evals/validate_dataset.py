@@ -32,7 +32,13 @@ def main(argv: list[str] | None = None) -> int:
 
     directory = args.dir or (CANDIDATES_DIR if args.candidates else SEEDED_DIR)
     splits = None if args.candidates or args.dir else SPLITS_FILE
-    cases, problems = validate_dataset(directory, splits_file=splits, allow_drafts=args.candidates)
+    # candidates/ may be empty (all drafts reviewed); seeded_prs/ and --dir may not.
+    cases, problems = validate_dataset(
+        directory,
+        splits_file=splits,
+        allow_drafts=args.candidates,
+        allow_empty=args.candidates,
+    )
     for problem in problems:
         print(f"ERROR {problem}")
     if problems:

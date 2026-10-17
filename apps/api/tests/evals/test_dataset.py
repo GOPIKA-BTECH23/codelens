@@ -46,12 +46,38 @@ def test_sample_size_line() -> None:
 
 
 def test_candidates_are_valid_drafts_and_never_scored() -> None:
-    cases, problems = validate_dataset(CANDIDATES_DIR, splits_file=None, allow_drafts=True)
+    """Whatever is in candidates/ (possibly nothing) is valid, still a draft, and not in the
+    scored dataset."""
+    cases, problems = validate_dataset(
+        CANDIDATES_DIR, splits_file=None, allow_drafts=True, allow_empty=True
+    )
     assert problems == []
-    assert cases and all(c.labels.label_status == "draft" for c in cases)
+    assert all(c.labels.label_status == "draft" for c in cases)
     assert validate_main(["--candidates"]) == 0
     scored = {c.name for c in load_dataset().cases}
     assert scored.isdisjoint(c.name for c in cases)
+    assert (CANDIDATES_DIR / ".gitkeep").is_file()  # keeps the folder tracked when empty
+
+
+def test_empty_candidates_dir_is_valid_but_an_empty_scored_dir_is_not(tmp_path: Path) -> None:
+    (tmp_path / ".gitkeep").write_text("", encoding="utf-8")
+    (tmp_path / "README.md").write_text("", encoding="utf-8")
+    assert validate_dataset(tmp_path, splits_file=None, allow_drafts=True, allow_empty=True) == (
+        [],
+        [],
+    )
+    _, problems = validate_dataset(tmp_path, splits_file=None)
+    assert problems == [f"no cases in {tmp_path}"]
+
+
+def test_malformed_draft_is_still_rejected(tmp_path: Path) -> None:
+    def broken_draft(labels: dict[str, Any]) -> None:
+        labels["label_status"] = "draft"
+        labels["expected_findings"][0]["line"] = 4  # a context line, not an added one
+
+    directory = copy_case(tmp_path, mutate=broken_draft)
+    _, problems = validate_dataset(directory, splits_file=None, allow_drafts=True, allow_empty=True)
+    assert problems == ["sql_injection: issue app/users.py:4: line 4 is not an added line"]
 
 
 def test_select_by_split_and_name() -> None:

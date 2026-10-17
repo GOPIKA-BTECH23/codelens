@@ -219,16 +219,23 @@ def validate_dataset(
     *,
     splits_file: Path | None = SPLITS_FILE,
     allow_drafts: bool = False,
+    allow_empty: bool = False,
     categories: CategoryTable | None = None,
 ) -> tuple[list[Case], list[str]]:
-    """Every problem found (empty = valid) and the cases that loaded."""
+    """Every problem found (empty = valid) and the cases that loaded.
+
+    `allow_empty` is for candidates/, which is empty once every draft has been reviewed and
+    moved. The scored dataset must never be empty: a missing seeded_prs/ would otherwise
+    "pass" with no cases and every metric undefined.
+    """
     categories = categories or load_categories()
     problems: list[str] = []
     diffs = {p.name.removesuffix(".diff") for p in directory.glob("*.diff")}
     labels = {p.name.removesuffix(".expected.json") for p in directory.glob("*.expected.json")}
     problems += [f"{n}: .diff without .expected.json" for n in sorted(diffs - labels)]
     problems += [f"{n}: .expected.json without .diff" for n in sorted(labels - diffs)]
-    allowed = {f"{n}.diff" for n in diffs} | {f"{n}.expected.json" for n in labels} | {"README.md"}
+    allowed = {f"{n}.diff" for n in diffs} | {f"{n}.expected.json" for n in labels}
+    allowed |= {"README.md", ".gitkeep"}
     problems += [f"unexpected file {p.name}" for p in directory.iterdir() if p.name not in allowed]
 
     assignment: dict[str, Split] = {}
@@ -243,7 +250,7 @@ def validate_dataset(
             problems.append(f"{name}: not in any split (splits.json)")
         if case is not None:
             cases.append(Case(case.name, case.diff, case.files, case.labels, assignment.get(name)))
-    if not cases and not problems:
+    if not cases and not problems and not allow_empty:
         problems.append(f"no cases in {directory}")
     return cases, problems
 
