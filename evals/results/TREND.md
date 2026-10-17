@@ -5,3 +5,4 @@ One row per recorded run (fake-provider runs excluded), oldest first. Generated 
 | Date (UTC) | Run | Model | Prompts | Dataset | Split | Sample | Precision | Recall | F1 | FP/clean case | Invalid output | Cost/case | Wall/case |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 2026-10-17 | [`20261017T125250Z-42f517c-security_v1`](20261017T125250Z-42f517c-security_v1.md) | `openai/gpt-oss-120b` | security_v1 | 2d0ef7ebbf7a | dev | 9 cases × 3 | 95.5% | 100.0% | 97.7% | 0.0833 | 0.0% | $0.000385 | 15716.6 ms |
+| 2026-10-17 | [`20261017T130459Z-0091fbe-security_v1`](20261017T130459Z-0091fbe-security_v1.md) | `openai/gpt-oss-120b` | security_v1 | 2d0ef7ebbf7a | test | 7 cases × 3 | 86.7% | 86.7% | 86.7% | 0 | 0.0% | $0.000426 | 17820.3 ms |
