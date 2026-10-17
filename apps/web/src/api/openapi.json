@@ -958,6 +958,11 @@
             "title": "Pull Title",
             "type": "string"
           },
+          "review_posted": {
+            "description": "True when a review was posted to GitHub (github_review_id is set).",
+            "title": "Review Posted",
+            "type": "boolean"
+          },
           "status": {
             "$ref": "#/components/schemas/RunStatus"
           }
@@ -968,7 +973,8 @@
           "created_at",
           "pull_request_id",
           "pull_number",
-          "pull_title"
+          "pull_title",
+          "review_posted"
         ],
         "title": "RunBrief",
         "type": "object"
@@ -1065,6 +1071,11 @@
             ],
             "title": "Prompt Version"
           },
+          "review_posted": {
+            "description": "True when a review was posted to GitHub (github_review_id is set).",
+            "title": "Review Posted",
+            "type": "boolean"
+          },
           "status": {
             "$ref": "#/components/schemas/RunStatus"
           },
@@ -1103,7 +1114,8 @@
           "head_sha",
           "error",
           "created_at",
-          "finished_at"
+          "finished_at",
+          "review_posted"
         ],
         "title": "RunOut",
         "type": "object"
@@ -1137,6 +1149,11 @@
             "title": "Id",
             "type": "string"
           },
+          "review_posted": {
+            "description": "True when a review was posted to GitHub (github_review_id is set).",
+            "title": "Review Posted",
+            "type": "boolean"
+          },
           "status": {
             "$ref": "#/components/schemas/RunStatus"
           }
@@ -1145,7 +1162,8 @@
           "id",
           "status",
           "created_at",
-          "findings_count"
+          "findings_count",
+          "review_posted"
         ],
         "title": "RunSummary",
         "type": "object"

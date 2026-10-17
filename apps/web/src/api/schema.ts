@@ -782,6 +782,11 @@ export interface components {
             pull_request_id: string;
             /** Pull Title */
             pull_title: string;
+            /**
+             * Review Posted
+             * @description True when a review was posted to GitHub (github_review_id is set).
+             */
+            review_posted: boolean;
             status: components["schemas"]["RunStatus"];
         };
         /** RunOut */
@@ -816,6 +821,11 @@ export interface components {
             model: string | null;
             /** Prompt Version */
             prompt_version: string | null;
+            /**
+             * Review Posted
+             * @description True when a review was posted to GitHub (github_review_id is set).
+             */
+            review_posted: boolean;
             status: components["schemas"]["RunStatus"];
             /** Tokens In */
             tokens_in: number | null;
@@ -844,6 +854,11 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /**
+             * Review Posted
+             * @description True when a review was posted to GitHub (github_review_id is set).
+             */
+            review_posted: boolean;
             status: components["schemas"]["RunStatus"];
         };
         /**

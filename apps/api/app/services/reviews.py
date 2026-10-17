@@ -62,15 +62,29 @@ async def _run_summaries(
                 latest.c.id,
                 latest.c.status,
                 latest.c.created_at,
+                latest.c.github_review_id,
                 func.count(Finding.id).filter(Finding.dismissed.is_(False)),
             )
             .select_from(latest)
             .outerjoin(Finding, Finding.review_run_id == latest.c.id)
-            .group_by(latest.c.pull_request_id, latest.c.id, latest.c.status, latest.c.created_at)
+            .group_by(
+                latest.c.pull_request_id,
+                latest.c.id,
+                latest.c.status,
+                latest.c.created_at,
+                latest.c.github_review_id,
+            )
         )
     ).all()
     return {
-        r[0]: RunSummary(id=r[1], status=r[2], created_at=r[3], findings_count=r[4]) for r in rows
+        r[0]: RunSummary(
+            id=r[1],
+            status=r[2],
+            created_at=r[3],
+            review_posted=r[4] is not None,
+            findings_count=r[5],
+        )
+        for r in rows
     }
 
 
@@ -188,6 +202,7 @@ async def latest_review(db: AsyncSession, pull_id: uuid.UUID) -> ReviewOut | Non
             error=run.error,
             created_at=run.created_at,
             finished_at=run.finished_at,
+            review_posted=run.github_review_id is not None,
         ),
         summary=SummaryOut.model_validate(run.summary) if run.summary else None,
         findings=[finding_out(f) for f in findings],

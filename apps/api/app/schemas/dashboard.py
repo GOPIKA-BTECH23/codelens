@@ -69,6 +69,9 @@ class RunBrief(BaseModel):
     pull_request_id: uuid.UUID
     pull_number: int
     pull_title: str
+    review_posted: bool = Field(
+        description="True when a review was posted to GitHub (github_review_id is set)."
+    )
 
 
 class RepoOut(BaseModel):
@@ -117,6 +120,9 @@ class RunSummary(BaseModel):
     status: RunStatus
     created_at: datetime
     findings_count: int = Field(description="Findings not dismissed.")
+    review_posted: bool = Field(
+        description="True when a review was posted to GitHub (github_review_id is set)."
+    )
 
 
 class PullOut(BaseModel):
@@ -144,6 +150,9 @@ class RunOut(BaseModel):
     error: str | None = Field(description="Why the run failed or was skipped.")
     created_at: datetime
     finished_at: datetime | None
+    review_posted: bool = Field(
+        description="True when a review was posted to GitHub (github_review_id is set)."
+    )
 
 
 class SummaryOut(BaseModel):
