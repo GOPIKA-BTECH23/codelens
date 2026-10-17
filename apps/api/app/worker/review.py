@@ -16,9 +16,9 @@ Idempotency (the queue is at-least-once, see M4):
 Order of the steps, and why:
     1. PR still open and still at the commit the webhook saw? (else skip: stale)
     2. Already posted by an earlier attempt? (else continue)
-    3. List files, filter noise. Nothing reviewable? skip, or post a short note (config).
-    4. Chunk, run the security agent; record usage whatever happens.
-    5. Validate findings against the diff, dedupe, threshold, cap.
+    3. List files, then review_core.review_files: filter noise, chunk, run the pipeline,
+       validate findings against the diff, dedupe, threshold, cap. Usage is recorded
+       whatever happens. Nothing reviewable? skip, or post a short note (config).
     6. Save findings + head_sha.
     7. Re-check the run is still `running` (a newer push may have superseded it, decision 16).
     8. Post ONE review; mark succeeded with latency and the GitHub review id.
@@ -28,18 +28,16 @@ import logging
 import time
 import uuid
 from collections.abc import Callable
-from dataclasses import dataclass
-from typing import Any, Literal, Protocol
+from typing import Any, Protocol
 
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.ai.agents.security import PROMPT_NAME, PROMPT_VERSION, security_agent
 from app.ai.llm.base import LLMProvider, LLMRequestRejected, LLMUsage, total_usage
-from app.ai.prompts import load_prompt
+from app.ai.pipeline import ReviewAgents, default_pipeline
 from app.db.models.enums import RunStatus
 from app.services import review_poster, runs
-from app.services.diff import chunk_files, filter_files, from_pr_files
+from app.services.diff import from_pr_files
 from app.services.github_app import GitHubApp
 from app.services.github_client import (
     GitHubClient,
@@ -50,7 +48,10 @@ from app.services.github_client import (
     installation_client,
 )
 from app.services.repos import effective_settings
+from app.services.review_core import ReviewConfig, review_files
 from app.worker.errors import PermanentJobError
+
+__all__ = ["GitHubReviewPipeline", "ReviewConfig", "ReviewPipeline", "installation_clients"]
 
 logger = logging.getLogger("app.worker.review")
 
@@ -61,25 +62,13 @@ class ReviewPipeline(Protocol):
     async def __call__(self, run_id: uuid.UUID, head_sha: str | None) -> None: ...
 
 
-@dataclass(frozen=True)
-class ReviewConfig:
-    """Review policy, from Settings (REVIEW_*)."""
-
-    confidence_threshold: float = 0.6
-    max_comments: int = 15
-    ignore_patterns: tuple[str, ...] = ()
-    max_file_changed_lines: int = 1000
-    no_code_behavior: Literal["skip", "comment"] = "skip"
-    chunk_max_tokens: int = 12_000
-    llm_concurrency: int = 2
-
-
 ClientFactory = Callable[[int], GitHubClient]
 
 
 class GitHubReviewPipeline:
     """The production pipeline. `client_for(installation_id)` builds the GitHub client, so
-    tests can hand in one that talks to a mocked GitHub."""
+    tests can hand in one that talks to a mocked GitHub. `agents` is what reviews the diff
+    (default: the single security agent)."""
 
     def __init__(
         self,
@@ -87,12 +76,14 @@ class GitHubReviewPipeline:
         llm: LLMProvider,
         config: ReviewConfig,
         client_for: ClientFactory,
+        agents: ReviewAgents | None = None,
     ) -> None:
         self._session_factory = session_factory
         self._llm = llm
         self._config = config
         self._client_for = client_for
-        self._prompt = load_prompt(PROMPT_NAME, PROMPT_VERSION)
+        self._agents = agents or default_pipeline()
+        self._prompt_version = ",".join(self._agents.prompt_versions)
 
     async def __call__(self, run_id: uuid.UUID, head_sha: str | None) -> None:
         try:
@@ -133,65 +124,46 @@ class GitHubReviewPipeline:
             await self._succeed(run_id, started, github_review_id=posted)
             return
 
-        # 3. What is there to review?
+        # 3-5. Filter, chunk, run the agents, validate. Usage is recorded even if it raises.
         files = from_pr_files(await gh.list_pull_request_files(repo, number))
-        filtered = filter_files(
-            files,
-            extra_patterns=(*self._config.ignore_patterns, *settings.ignore_paths),
-            max_changed_lines=self._config.max_file_changed_lines,
-        )
-        summary = review_poster.ReviewSummary(
-            files_reviewed=len(filtered.code_files),
-            skipped=list(filtered.skipped),
-            doc_files=len(filtered.doc_files),
-        )
-        if not filtered.code_files:
-            await self._no_code(run_id, gh, repo, number, head, summary, started)
-            return
-
-        # 4. The agent. Usage is recorded even if it raises.
-        chunks, oversized = chunk_files(
-            filtered.code_files,
-            max_tokens=self._config.chunk_max_tokens,
-            estimate=self._llm.estimate_tokens,
-        )
-        summary.skipped.extend(oversized)
         usage_log: list[LLMUsage] = []
         try:
-            result = await security_agent(
-                chunks,
+            outcome = await review_files(
+                files,
+                self._agents,
                 self._llm,
+                self._config,
                 usage_log=usage_log,
-                concurrency=self._config.llm_concurrency,
-                prompt=self._prompt,
+                repo_settings=settings,
             )
         finally:
             await self._record_usage(run_id, usage_log)
-        if chunks and result.chunks_failed == len(chunks):
+        filtered = outcome.filtered
+        summary = review_poster.ReviewSummary(
+            files_reviewed=len(filtered.code_files),
+            skipped=[*filtered.skipped, *outcome.oversized],
+            doc_files=len(filtered.doc_files),
+        )
+        if not outcome.has_code:
+            await self._no_code(run_id, gh, repo, number, head, summary, started)
+            return
+        if outcome.all_chunks_failed:
             raise PermanentJobError(
-                f"the model returned invalid output for all {len(chunks)} part(s) of the diff"
+                f"the model returned invalid output for all {outcome.chunks} part(s) of the diff"
             )
 
-        # 5. Keep only findings that point at real changed code.
-        counts = review_poster.DropCounts()
-        valid = review_poster.validate_findings(result.findings, filtered.code_files, counts)
-        selected = review_poster.select_findings(
-            valid,
-            threshold=self._config.confidence_threshold,
-            max_comments=self._config.max_comments,
-            counts=counts,
-            min_severity=settings.severity_threshold,
-        )
-        summary.chunks_total = result.chunks_total
-        summary.chunks_failed = result.chunks_failed
-        summary.change_summaries = result.change_summaries
+        selected = [t.finding for t in outcome.selected]
+        counts = outcome.counts
+        summary.chunks_total = outcome.chunks_total
+        summary.chunks_failed = outcome.chunks_failed
+        summary.change_summaries = outcome.change_summaries
         summary.counts = counts
-        summary.model = result.model
-        summary.prompt_version = result.prompt_version
+        summary.model = self._llm.model
+        summary.prompt_version = self._prompt_version
         logger.info(
             "findings validated",
             extra={
-                "raw": len(result.findings),
+                "raw": len(outcome.raw),
                 "posted": len(selected),
                 "not_anchored": counts.not_anchored,
                 "low_confidence": counts.low_confidence,
@@ -276,7 +248,7 @@ class GitHubReviewPipeline:
         totals = total_usage(usage_log)
         async with self._session_factory.begin() as session:
             await runs.add_usage(
-                session, run_id, totals, model=self._llm.model, prompt_version=self._prompt.id
+                session, run_id, totals, model=self._llm.model, prompt_version=self._prompt_version
             )
         logger.info(
             "llm usage recorded",

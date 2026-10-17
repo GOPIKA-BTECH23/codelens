@@ -96,6 +96,7 @@ class AgentOutput(BaseModel):
 class AgentResult(BaseModel):
     """What an agent returns for a whole PR (all chunks). Built by our code, not the model."""
 
+    agent: str = "security"
     findings: list[Finding]
     change_summaries: list[str]
     prompt_version: str
