@@ -1,0 +1,1732 @@
+{
+  "schema_version": 1,
+  "header": {
+    "run_id": "20261017T125250Z-42f517c-security_v1",
+    "created_at": "2026-10-17T12:52:50Z",
+    "git_sha": "42f517c9dda695499b44b1736545b8c9e93cc5b8",
+    "git_dirty": false,
+    "provider": "groq",
+    "model": "openai/gpt-oss-120b",
+    "pipeline": "security-single",
+    "prompt_versions": [
+      "security_v1"
+    ],
+    "dataset_name": "seeded_prs",
+    "dataset_version": "2d0ef7ebbf7a",
+    "splits_status": "approved",
+    "split": "dev",
+    "include_test": false,
+    "cases": [
+      "clean_env_secret",
+      "clean_safe_yaml",
+      "clean_subprocess_args",
+      "docs_only",
+      "eval_user_input",
+      "hardcoded_secret",
+      "path_traversal",
+      "sql_injection",
+      "weak_password_hash"
+    ],
+    "repeats": 3,
+    "tolerance": 2,
+    "categories_sha256": "85d2da1a5342",
+    "review_config": {
+      "confidence_threshold": 0.6,
+      "max_comments": 15,
+      "ignore_patterns": [],
+      "max_file_changed_lines": 1000,
+      "no_code_behavior": "skip",
+      "chunk_max_tokens": 12000,
+      "llm_concurrency": 1
+    }
+  },
+  "finished_at": "2026-10-17T12:59:55Z",
+  "budget": {
+    "max_cost_usd": "0.05",
+    "spent_usd": "0.010398"
+  },
+  "labels": {
+    "clean_env_secret": {
+      "split": "dev",
+      "clean": true,
+      "has_code_to_review": true,
+      "expected_findings": [],
+      "optional_findings": []
+    },
+    "clean_safe_yaml": {
+      "split": "dev",
+      "clean": true,
+      "has_code_to_review": true,
+      "expected_findings": [],
+      "optional_findings": []
+    },
+    "clean_subprocess_args": {
+      "split": "dev",
+      "clean": true,
+      "has_code_to_review": true,
+      "expected_findings": [],
+      "optional_findings": []
+    },
+    "docs_only": {
+      "split": "dev",
+      "clean": true,
+      "has_code_to_review": false,
+      "expected_findings": [],
+      "optional_findings": []
+    },
+    "eval_user_input": {
+      "split": "dev",
+      "clean": false,
+      "has_code_to_review": true,
+      "expected_findings": [
+        {
+          "file": "app/calc.py",
+          "line": 16,
+          "end_line": null,
+          "category": "code-injection",
+          "min_severity": "high",
+          "note": "eval() of a query parameter: arbitrary Python execution on the server."
+        }
+      ],
+      "optional_findings": []
+    },
+    "hardcoded_secret": {
+      "split": "dev",
+      "clean": false,
+      "has_code_to_review": true,
+      "expected_findings": [
+        {
+          "file": "app/config.py",
+          "line": 8,
+          "end_line": null,
+          "category": "hardcoded-secret",
+          "min_severity": "high",
+          "note": null
+        },
+        {
+          "file": "app/config.py",
+          "line": 11,
+          "end_line": null,
+          "category": "hardcoded-secret",
+          "min_severity": "high",
+          "note": null
+        }
+      ],
+      "optional_findings": []
+    },
+    "path_traversal": {
+      "split": "dev",
+      "clean": false,
+      "has_code_to_review": true,
+      "expected_findings": [
+        {
+          "file": "app/files.py",
+          "line": 19,
+          "end_line": null,
+          "category": "path-traversal",
+          "min_severity": "high",
+          "note": null
+        }
+      ],
+      "optional_findings": []
+    },
+    "sql_injection": {
+      "split": "dev",
+      "clean": false,
+      "has_code_to_review": true,
+      "expected_findings": [
+        {
+          "file": "app/users.py",
+          "line": 9,
+          "end_line": null,
+          "category": "sql-injection",
+          "min_severity": "high",
+          "note": null
+        },
+        {
+          "file": "app/users.py",
+          "line": 14,
+          "end_line": null,
+          "category": "sql-injection",
+          "min_severity": "high",
+          "note": null
+        }
+      ],
+      "optional_findings": []
+    },
+    "weak_password_hash": {
+      "split": "dev",
+      "clean": false,
+      "has_code_to_review": true,
+      "expected_findings": [
+        {
+          "file": "app/accounts.py",
+          "line": 11,
+          "end_line": null,
+          "category": "weak-crypto",
+          "min_severity": "medium",
+          "note": "Unsalted MD5 for password storage: fast to brute-force, rainbow tables."
+        }
+      ],
+      "optional_findings": []
+    }
+  },
+  "categories": {
+    "_about": "Category compatibility for matching a finding to a ground-truth issue (docs/evals.md). Labels in the dataset use the family names (the keys). A finding's category matches a label when it is the family name, one of its aliases, or an umbrella term that lists the family. Canonical names follow the ones the security prompt asks for. Keep this small and reviewed by hand: every alias makes matching more lenient.",
+    "families": {
+      "sql-injection": [
+        "sqli"
+      ],
+      "command-injection": [
+        "os-command-injection",
+        "shell-injection"
+      ],
+      "code-injection": [
+        "eval-injection",
+        "unsafe-eval",
+        "arbitrary-code-execution",
+        "remote-code-execution"
+      ],
+      "hardcoded-secret": [
+        "hardcoded-credentials",
+        "hardcoded-password",
+        "hardcoded-api-key"
+      ],
+      "path-traversal": [
+        "directory-traversal"
+      ],
+      "unsafe-deserialization": [
+        "insecure-deserialization"
+      ],
+      "weak-crypto": [
+        "weak-hash",
+        "weak-hashing",
+        "insecure-hash",
+        "weak-password-hashing",
+        "weak-password-hash",
+        "insecure-password-storage"
+      ],
+      "missing-authz": [
+        "missing-authorization",
+        "broken-access-control",
+        "idor",
+        "missing-access-control",
+        "missing-ownership-check",
+        "authorization-bypass"
+      ],
+      "insecure-config": [
+        "insecure-tls",
+        "tls-verification-disabled",
+        "insecure-default",
+        "debug-mode",
+        "ssl-verification-disabled",
+        "insecure-ssl",
+        "certificate-validation-disabled"
+      ],
+      "prompt-injection": [],
+      "ssrf": [],
+      "open-redirect": [],
+      "xss": []
+    },
+    "umbrellas": {
+      "injection": [
+        "sql-injection",
+        "command-injection",
+        "code-injection"
+      ]
+    }
+  },
+  "runs": [
+    {
+      "case": "clean_env_secret",
+      "repeat": 1,
+      "has_code": true,
+      "files_reviewed": 1,
+      "chunks_total": 1,
+      "chunks_failed": 0,
+      "calls": 1,
+      "invalid_outputs": 0,
+      "tokens_in": 1843,
+      "tokens_out": 98,
+      "cost_usd": "0.000335",
+      "retry_cost_usd": "0",
+      "attempts": 1,
+      "model_latency_ms": 1266,
+      "wall_ms": 1280,
+      "drop_counts": {
+        "unknown_file": 0,
+        "line_not_in_diff": 0,
+        "no_added_line": 0,
+        "evidence_mismatch": 0,
+        "duplicate": 0,
+        "low_confidence": 0,
+        "below_severity": 0,
+        "over_cap": 0
+      },
+      "findings": []
+    },
+    {
+      "case": "clean_safe_yaml",
+      "repeat": 1,
+      "has_code": true,
+      "files_reviewed": 1,
+      "chunks_total": 1,
+      "chunks_failed": 0,
+      "calls": 1,
+      "invalid_outputs": 0,
+      "tokens_in": 1880,
+      "tokens_out": 123,
+      "cost_usd": "0.000356",
+      "retry_cost_usd": "0",
+      "attempts": 1,
+      "model_latency_ms": 891,
+      "wall_ms": 906,
+      "drop_counts": {
+        "unknown_file": 0,
+        "line_not_in_diff": 0,
+        "no_added_line": 0,
+        "evidence_mismatch": 0,
+        "duplicate": 0,
+        "low_confidence": 0,
+        "below_severity": 0,
+        "over_cap": 0
+      },
+      "findings": []
+    },
+    {
+      "case": "clean_subprocess_args",
+      "repeat": 1,
+      "has_code": true,
+      "files_reviewed": 1,
+      "chunks_total": 1,
+      "chunks_failed": 0,
+      "calls": 1,
+      "invalid_outputs": 0,
+      "tokens_in": 1882,
+      "tokens_out": 174,
+      "cost_usd": "0.000387",
+      "retry_cost_usd": "0",
+      "attempts": 1,
+      "model_latency_ms": 843,
+      "wall_ms": 843,
+      "drop_counts": {
+        "unknown_file": 0,
+        "line_not_in_diff": 0,
+        "no_added_line": 0,
+        "evidence_mismatch": 0,
+        "duplicate": 0,
+        "low_confidence": 0,
+        "below_severity": 0,
+        "over_cap": 0
+      },
+      "findings": []
+    },
+    {
+      "case": "docs_only",
+      "repeat": 1,
+      "has_code": false,
+      "files_reviewed": 0,
+      "chunks_total": 0,
+      "chunks_failed": 0,
+      "calls": 0,
+      "invalid_outputs": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "cost_usd": "0",
+      "retry_cost_usd": "0",
+      "attempts": 1,
+      "model_latency_ms": 0,
+      "wall_ms": 0,
+      "drop_counts": {
+        "unknown_file": 0,
+        "line_not_in_diff": 0,
+        "no_added_line": 0,
+        "evidence_mismatch": 0,
+        "duplicate": 0,
+        "low_confidence": 0,
+        "below_severity": 0,
+        "over_cap": 0
+      },
+      "findings": []
+    },
+    {
+      "case": "eval_user_input",
+      "repeat": 1,
+      "has_code": true,
+      "files_reviewed": 1,
+      "chunks_total": 1,
+      "chunks_failed": 0,
+      "calls": 1,
+      "invalid_outputs": 0,
+      "tokens_in": 1819,
+      "tokens_out": 226,
+      "cost_usd": "0.000408",
+      "retry_cost_usd": "0",
+      "attempts": 1,
+      "model_latency_ms": 922,
+      "wall_ms": 57890,
+      "drop_counts": {
+        "unknown_file": 0,
+        "line_not_in_diff": 0,
+        "no_added_line": 0,
+        "evidence_mismatch": 0,
+        "duplicate": 0,
+        "low_confidence": 0,
+        "below_severity": 0,
+        "over_cap": 0
+      },
+      "findings": [
+        {
+          "agent": "security",
+          "stage": "posted",
+          "file": "app/calc.py",
+          "line": 16,
+          "end_line": null,
+          "severity": "high",
+          "category": "code-injection",
+          "confidence": 0.95,
+          "message": "The endpoint uses eval() on a value taken directly from the request query string, allowing an attacker to execute arbitrary Python code on the server.",
+          "suggestion": "Replace eval with a safe expression parser or whitelist allowed operations, and never evaluate raw user input.",
+          "evidence": "return jsonify(result=eval(expression))"
+        }
+      ]
+    },
+    {
+      "case": "hardcoded_secret",
+      "repeat": 1,
+      "has_code": true,
+      "files_reviewed": 1,
+      "chunks_total": 1,
+      "chunks_failed": 0,
+      "calls": 1,
+      "invalid_outputs": 0,
+      "tokens_in": 1860,
+      "tokens_out": 365,
+      "cost_usd": "0.000498",
+      "retry_cost_usd": "0",
+      "attempts": 1,
+      "model_latency_ms": 1281,
+      "wall_ms": 1625,
+      "drop_counts": {
+        "unknown_file": 0,
+        "line_not_in_diff": 0,
+        "no_added_line": 0,
+        "evidence_mismatch": 0,
+        "duplicate": 0,
+        "low_confidence": 0,
+        "below_severity": 0,
+        "over_cap": 0
+      },
+      "findings": [
+        {
+          "agent": "security",
+          "stage": "posted",
+          "file": "app/config.py",
+          "line": 8,
+          "end_line": null,
+          "severity": "high",
+          "category": "hardcoded-secret",
+          "confidence": 0.96,
+          "message": "The database password is hardcoded in source code, exposing credentials if the repository is leaked or accessed by unauthorized users.",
+          "suggestion": "Load the password from environment variables or a secure secret manager instead of hardcoding it.",
+          "evidence": "DB_PASSWORD = \"Pr0d-Passw0rd-2026!\""
+        },
+        {
+          "agent": "security",
+          "stage": "posted",
+          "file": "app/config.py",
+          "line": 11,
+          "end_line": null,
+          "severity": "high",
+          "category": "hardcoded-secret",
+          "confidence": 0.96,
+          "message": "A payment provider API token is hardcoded, which could allow attackers to hijack payment operations if the code is exposed.",
+          "suggestion": "Store the API token in environment variables or a secret management service and retrieve it at runtime.",
+          "evidence": "PAYMENT_API_TOKEN = \"pay_tok_9f8e7d6c5b4a39281706\""
+        }
+      ]
+    },
+    {
+      "case": "path_traversal",
+      "repeat": 1,
+      "has_code": true,
+      "files_reviewed": 1,
+      "chunks_total": 1,
+      "chunks_failed": 0,
+      "calls": 1,
+      "invalid_outputs": 0,
+      "tokens_in": 1859,
+      "tokens_out": 272,
+      "cost_usd": "0.000442",
+      "retry_cost_usd": "0",
+      "attempts": 1,
+      "model_latency_ms": 1094,
+      "wall_ms": 1094,
+      "drop_counts": {
+        "unknown_file": 0,
+        "line_not_in_diff": 0,
+        "no_added_line": 0,
+        "evidence_mismatch": 0,
+        "duplicate": 0,
+        "low_confidence": 0,
+        "below_severity": 0,
+        "over_cap": 0
+      },
+      "findings": [
+        {
+          "agent": "security",
+          "stage": "posted",
+          "file": "app/files.py",
+          "line": 19,
+          "end_line": null,
+          "severity": "high",
+          "category": "path-traversal",
+          "confidence": 0.92,
+          "message": "The 'name' query parameter is concatenated with the upload directory using os.path.join without validation, allowing an attacker to request files outside the intended directory via path traversal (e.g., '../../etc/passwd').",
+          "suggestion": "Validate and sanitize the 'name' parameter to restrict it to the upload directory, e.g., by checking that the resolved path starts with UPLOAD_DIR or by using a whitelist of allowed filenames.",
+          "evidence": "path = os.path.join(UPLOAD_DIR, name)"
+        }
+      ]
+    },
+    {
+      "case": "sql_injection",
+      "repeat": 1,
+      "has_code": true,
+      "files_reviewed": 1,
+      "chunks_total": 1,
+      "chunks_failed": 0,
+      "calls": 1,
+      "invalid_outputs": 0,
+      "tokens_in": 1916,
+      "tokens_out": 410,
+      "cost_usd": "0.000533",
+      "retry_cost_usd": "0",
+      "attempts": 1,
+      "model_latency_ms": 1750,
+      "wall_ms": 58093,
+      "drop_counts": {
+        "unknown_file": 0,
+        "line_not_in_diff": 0,
+        "no_added_line": 0,
+        "evidence_mismatch": 0,
+        "duplicate": 0,
+        "low_confidence": 0,
+        "below_severity": 0,
+        "over_cap": 0
+      },
+      "findings": [
+        {
+          "agent": "security",
+          "stage": "posted",
+          "file": "app/users.py",
+          "line": 9,
+          "end_line": null,
+          "severity": "high",
+          "category": "sql-injection",
+          "confidence": 0.95,
+          "message": "The query string is built by concatenating the unescaped `username` directly into the SQL statement, allowing an attacker to inject arbitrary SQL via the `username` parameter.",
+          "suggestion": "Use parameterised queries instead of string concatenation, e.g., `conn.execute(\"SELECT id, email FROM users WHERE username = %s\", (username,))`.",
+          "evidence": "query = \"SELECT id, email FROM users WHERE username = '\" + username + \"'\""
+        },
+        {
+          "agent": "security",
+          "stage": "posted",
+          "file": "app/users.py",
+          "line": 14,
+          "end_line": null,
+          "severity": "high",
+          "category": "sql-injection",
+          "confidence": 0.92,
+          "message": "The f-string inserts user-controlled `term` and `order_by` directly into the SQL query, which can be exploited for SQL injection and possibly ordering attacks.",
+          "suggestion": "Parameterise the `term` value and validate or whitelist the `order_by` column before including it in the query.",
+          "evidence": "sql = f\"SELECT id, email FROM users WHERE email LIKE '%{term}%' ORDER BY {order_by}\""
+        }
+      ]
+    },
+    {
+      "case": "weak_password_hash",
+      "repeat": 1,
+      "has_code": true,
+      "files_reviewed": 1,
+      "chunks_total": 1,
+      "chunks_failed": 0,
+      "calls": 1,
+      "invalid_outputs": 0,
+      "tokens_in": 1886,
+      "tokens_out": 350,
+      "cost_usd": "0.000493",
+      "retry_cost_usd": "0",
+      "attempts": 1,
+      "model_latency_ms": 1078,
+      "wall_ms": 1078,
+      "drop_counts": {
+        "unknown_file": 0,
+        "line_not_in_diff": 0,
+        "no_added_line": 0,
+        "evidence_mismatch": 0,
+        "duplicate": 0,
+        "low_confidence": 0,
+        "below_severity": 0,
+        "over_cap": 0
+      },
+      "findings": [
+        {
+          "agent": "security",
+          "stage": "posted",
+          "file": "app/accounts.py",
+          "line": 11,
+          "end_line": null,
+          "severity": "high",
+          "category": "weak-crypto",
+          "confidence": 0.95,
+          "message": "Passwords are hashed using MD5, which is a fast, broken hash algorithm unsuitable for storing passwords. An attacker who obtains the hash database can efficiently brute‑force or use precomputed tables to recover passwords.",
+          "suggestion": "Replace MD5 with a strong password‑hashing function such as bcrypt, Argon2, or PBKDF2 with a per‑user salt.",
+          "evidence": "return hashlib.md5(password.encode()).hexdigest()"
+        }
+      ]
+    },
+    {
+      "case": "clean_env_secret",
+      "repeat": 2,
+      "has_code": true,
+      "files_reviewed": 1,
+      "chunks_total": 1,
+      "chunks_failed": 0,
+      "calls": 1,
+      "invalid_outputs": 0,
+      "tokens_in": 1831,
+      "tokens_out": 85,
+      "cost_usd": "0.000326",
+      "retry_cost_usd": "0",
+      "attempts": 1,
+      "model_latency_ms": 717,
+      "wall_ms": 717,
+      "drop_counts": {
+        "unknown_file": 0,
+        "line_not_in_diff": 0,
+        "no_added_line": 0,
+        "evidence_mismatch": 0,
+        "duplicate": 0,
+        "low_confidence": 0,
+        "below_severity": 0,
+        "over_cap": 0
+      },
+      "findings": []
+    },
+    {
+      "case": "clean_safe_yaml",
+      "repeat": 2,
+      "has_code": true,
+      "files_reviewed": 1,
+      "chunks_total": 1,
+      "chunks_failed": 0,
+      "calls": 1,
+      "invalid_outputs": 0,
+      "tokens_in": 1876,
+      "tokens_out": 105,
+      "cost_usd": "0.000344",
+      "retry_cost_usd": "0",
+      "attempts": 1,
+      "model_latency_ms": 1656,
+      "wall_ms": 58094,
+      "drop_counts": {
+        "unknown_file": 0,
+        "line_not_in_diff": 0,
+        "no_added_line": 0,
+        "evidence_mismatch": 0,
+        "duplicate": 0,
+        "low_confidence": 0,
+        "below_severity": 0,
+        "over_cap": 0
+      },
+      "findings": []
+    },
+    {
+      "case": "clean_subprocess_args",
+      "repeat": 2,
+      "has_code": true,
+      "files_reviewed": 1,
+      "chunks_total": 1,
+      "chunks_failed": 0,
+      "calls": 1,
+      "invalid_outputs": 0,
+      "tokens_in": 1886,
+      "tokens_out": 373,
+      "cost_usd": "0.000507",
+      "retry_cost_usd": "0",
+      "attempts": 1,
+      "model_latency_ms": 1531,
+      "wall_ms": 1625,
+      "drop_counts": {
+        "unknown_file": 0,
+        "line_not_in_diff": 0,
+        "no_added_line": 0,
+        "evidence_mismatch": 0,
+        "duplicate": 0,
+        "low_confidence": 0,
+        "below_severity": 0,
+        "over_cap": 0
+      },
+      "findings": [
+        {
+          "agent": "security",
+          "stage": "posted",
+          "file": "app/thumbnails.py",
+          "line": 12,
+          "end_line": 14,
+          "severity": "medium",
+          "category": "command-injection",
+          "confidence": 0.65,
+          "message": "The pdf_path argument is passed directly to subprocess.run without validation. If an attacker can control pdf_path, they could supply a filename that begins with a dash (e.g., \"-output\") to inject additional options into the pdftoppm command.",
+          "suggestion": "Validate and sanitize pdf_path, ensuring it is a safe file name or use a whitelist of allowed characters before passing it to subprocess.run.",
+          "evidence": "subprocess.run(\n    [\"pdftoppm\", \"-png\", \"-singlefile\", \"-scale-to\", \"256\", str(pdf_path), str(out.with_suffix(\"\"))],"
+        }
+      ]
+    },
+    {
+      "case": "docs_only",
+      "repeat": 2,
+      "has_code": false,
+      "files_reviewed": 0,
+      "chunks_total": 0,
+      "chunks_failed": 0,
+      "calls": 0,
+      "invalid_outputs": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "cost_usd": "0",
+      "retry_cost_usd": "0",
+      "attempts": 1,
+      "model_latency_ms": 0,
+      "wall_ms": 0,
+      "drop_counts": {
+        "unknown_file": 0,
+        "line_not_in_diff": 0,
+        "no_added_line": 0,
+        "evidence_mismatch": 0,
+        "duplicate": 0,
+        "low_confidence": 0,
+        "below_severity": 0,
+        "over_cap": 0
+      },
+      "findings": []
+    },
+    {
+      "case": "eval_user_input",
+      "repeat": 2,
+      "has_code": true,
+      "files_reviewed": 1,
+      "chunks_total": 1,
+      "chunks_failed": 0,
+      "calls": 1,
+      "invalid_outputs": 0,
+      "tokens_in": 1823,
+      "tokens_out": 221,
+      "cost_usd": "0.000406",
+      "retry_cost_usd": "0",
+      "attempts": 1,
+      "model_latency_ms": 1109,
+      "wall_ms": 1125,
+      "drop_counts": {
+        "unknown_file": 0,
+        "line_not_in_diff": 0,
+        "no_added_line": 0,
+        "evidence_mismatch": 0,
+        "duplicate": 0,
+        "low_confidence": 0,
+        "below_severity": 0,
+        "over_cap": 0
+      },
+      "findings": [
+        {
+          "agent": "security",
+          "stage": "posted",
+          "file": "app/calc.py",
+          "line": 16,
+          "end_line": null,
+          "severity": "high",
+          "category": "code-injection",
+          "confidence": 0.95,
+          "message": "The endpoint takes the 'expr' query parameter from the request and passes it directly to eval(), allowing an attacker to execute arbitrary Python code on the server.",
+          "suggestion": "Replace eval with a safe expression evaluator or whitelist allowed operations, e.g., use the ast.literal_eval function or a dedicated math expression parser.",
+          "evidence": "return jsonify(result=eval(expression))"
+        }
+      ]
+    },
+    {
+      "case": "hardcoded_secret",
+      "repeat": 2,
+      "has_code": true,
+      "files_reviewed": 1,
+      "chunks_total": 1,
+      "chunks_failed": 0,
+      "calls": 1,
+      "invalid_outputs": 0,
+      "tokens_in": 1856,
+      "tokens_out": 361,
+      "cost_usd": "0.000495",
+      "retry_cost_usd": "0",
+      "attempts": 1,
+      "model_latency_ms": 1391,
+      "wall_ms": 56984,
+      "drop_counts": {
+        "unknown_file": 0,
+        "line_not_in_diff": 0,
+        "no_added_line": 0,
+        "evidence_mismatch": 0,
+        "duplicate": 0,
+        "low_confidence": 0,
+        "below_severity": 0,
+        "over_cap": 0
+      },
+      "findings": [
+        {
+          "agent": "security",
+          "stage": "posted",
+          "file": "app/config.py",
+          "line": 8,
+          "end_line": null,
+          "severity": "high",
+          "category": "hardcoded-secret",
+          "confidence": 0.96,
+          "message": "A database password is hardcoded in the source code, which can be extracted by an attacker and used to gain unauthorized database access.",
+          "suggestion": "Store the password in an environment variable or secret management system and retrieve it at runtime, e.g., DB_PASSWORD = os.environ.get(\"DB_PASSWORD\")",
+          "evidence": "DB_PASSWORD = \"Pr0d-Passw0rd-2026!\""
+        },
+        {
+          "agent": "security",
+          "stage": "posted",
+          "file": "app/config.py",
+          "line": 11,
+          "end_line": null,
+          "severity": "high",
+          "category": "hardcoded-secret",
+          "confidence": 0.96,
+          "message": "A payment provider API token is hardcoded, exposing credentials that could be used to perform fraudulent transactions.",
+          "suggestion": "Load the token from a secure environment variable or secret store, e.g., PAYMENT_API_TOKEN = os.environ.get(\"PAYMENT_API_TOKEN\")",
+          "evidence": "PAYMENT_API_TOKEN = \"pay_tok_9f8e7d6c5b4a39281706\""
+        }
+      ]
+    },
+    {
+      "case": "path_traversal",
+      "repeat": 2,
+      "has_code": true,
+      "files_reviewed": 1,
+      "chunks_total": 1,
+      "chunks_failed": 0,
+      "calls": 1,
+      "invalid_outputs": 0,
+      "tokens_in": 1855,
+      "tokens_out": 313,
+      "cost_usd": "0.000466",
+      "retry_cost_usd": "0",
+      "attempts": 1,
+      "model_latency_ms": 1062,
+      "wall_ms": 1437,
+      "drop_counts": {
+        "unknown_file": 0,
+        "line_not_in_diff": 0,
+        "no_added_line": 0,
+        "evidence_mismatch": 0,
+        "duplicate": 0,
+        "low_confidence": 0,
+        "below_severity": 0,
+        "over_cap": 0
+      },
+      "findings": [
+        {
+          "agent": "security",
+          "stage": "posted",
+          "file": "app/files.py",
+          "line": 19,
+          "end_line": null,
+          "severity": "high",
+          "category": "path-traversal",
+          "confidence": 0.92,
+          "message": "The endpoint constructs a filesystem path using a user-controlled 'name' parameter without validation, allowing attackers to traverse directories (e.g., using '../') and read arbitrary files on the server.",
+          "suggestion": "Validate and sanitize the 'name' parameter, restrict it to allowed filenames, or use a safe method like werkzeug's safe_join and ensure the resulting path is within UPLOAD_DIR before sending the file.",
+          "evidence": "path = os.path.join(UPLOAD_DIR, name)"
+        }
+      ]
+    },
+    {
+      "case": "sql_injection",
+      "repeat": 2,
+      "has_code": true,
+      "files_reviewed": 1,
+      "chunks_total": 1,
+      "chunks_failed": 0,
+      "calls": 1,
+      "invalid_outputs": 0,
+      "tokens_in": 1908,
+      "tokens_out": 391,
+      "cost_usd": "0.000521",
+      "retry_cost_usd": "0",
+      "attempts": 1,
+      "model_latency_ms": 1422,
+      "wall_ms": 1891,
+      "drop_counts": {
+        "unknown_file": 0,
+        "line_not_in_diff": 0,
+        "no_added_line": 0,
+        "evidence_mismatch": 0,
+        "duplicate": 0,
+        "low_confidence": 0,
+        "below_severity": 0,
+        "over_cap": 0
+      },
+      "findings": [
+        {
+          "agent": "security",
+          "stage": "posted",
+          "file": "app/users.py",
+          "line": 9,
+          "end_line": null,
+          "severity": "high",
+          "category": "sql-injection",
+          "confidence": 0.95,
+          "message": "The function `find_user_by_name` constructs a SQL query by concatenating the `username` parameter directly into the query string, allowing an attacker to inject arbitrary SQL code.",
+          "suggestion": "Use parameterized queries, e.g., `conn.execute(\"SELECT id, email FROM users WHERE username = %s\", (username,))`.",
+          "evidence": "query = \"SELECT id, email FROM users WHERE username = '\" + username + \"'\""
+        },
+        {
+          "agent": "security",
+          "stage": "posted",
+          "file": "app/users.py",
+          "line": 14,
+          "end_line": null,
+          "severity": "high",
+          "category": "sql-injection",
+          "confidence": 0.93,
+          "message": "The function `search_users` builds a SQL query using f-strings with `term` and `order_by` parameters, which can be manipulated to inject SQL or modify the ORDER BY clause.",
+          "suggestion": "Rewrite the query to use placeholders for `term` and validate/whitelist `order_by` values before inclusion.",
+          "evidence": "sql = f\"SELECT id, email FROM users WHERE email LIKE '%{term}%' ORDER BY {order_by}\""
+        }
+      ]
+    },
+    {
+      "case": "weak_password_hash",
+      "repeat": 2,
+      "has_code": true,
+      "files_reviewed": 1,
+      "chunks_total": 1,
+      "chunks_failed": 0,
+      "calls": 1,
+      "invalid_outputs": 0,
+      "tokens_in": 1878,
+      "tokens_out": 301,
+      "cost_usd": "0.000462",
+      "retry_cost_usd": "0",
+      "attempts": 1,
+      "model_latency_ms": 1312,
+      "wall_ms": 56592,
+      "drop_counts": {
+        "unknown_file": 0,
+        "line_not_in_diff": 0,
+        "no_added_line": 0,
+        "evidence_mismatch": 0,
+        "duplicate": 0,
+        "low_confidence": 0,
+        "below_severity": 0,
+        "over_cap": 0
+      },
+      "findings": [
+        {
+          "agent": "security",
+          "stage": "posted",
+          "file": "app/accounts.py",
+          "line": 11,
+          "end_line": null,
+          "severity": "high",
+          "category": "weak-crypto",
+          "confidence": 0.92,
+          "message": "Passwords are hashed using MD5 without a salt, which is fast and vulnerable to pre‑computed hash attacks. An attacker who obtains the password hash can easily recover the original password.",
+          "suggestion": "Replace the MD5 hash with a strong, slow password hashing algorithm such as bcrypt, Argon2, or PBKDF2, and include a unique salt per password.",
+          "evidence": "return hashlib.md5(password.encode()).hexdigest()"
+        }
+      ]
+    },
+    {
+      "case": "clean_env_secret",
+      "repeat": 3,
+      "has_code": true,
+      "files_reviewed": 1,
+      "chunks_total": 1,
+      "chunks_failed": 0,
+      "calls": 1,
+      "invalid_outputs": 0,
+      "tokens_in": 1831,
+      "tokens_out": 80,
+      "cost_usd": "0.000323",
+      "retry_cost_usd": "0",
+      "attempts": 1,
+      "model_latency_ms": 890,
+      "wall_ms": 1344,
+      "drop_counts": {
+        "unknown_file": 0,
+        "line_not_in_diff": 0,
+        "no_added_line": 0,
+        "evidence_mismatch": 0,
+        "duplicate": 0,
+        "low_confidence": 0,
+        "below_severity": 0,
+        "over_cap": 0
+      },
+      "findings": []
+    },
+    {
+      "case": "clean_safe_yaml",
+      "repeat": 3,
+      "has_code": true,
+      "files_reviewed": 1,
+      "chunks_total": 1,
+      "chunks_failed": 0,
+      "calls": 1,
+      "invalid_outputs": 0,
+      "tokens_in": 1876,
+      "tokens_out": 139,
+      "cost_usd": "0.000365",
+      "retry_cost_usd": "0",
+      "attempts": 1,
+      "model_latency_ms": 750,
+      "wall_ms": 1390,
+      "drop_counts": {
+        "unknown_file": 0,
+        "line_not_in_diff": 0,
+        "no_added_line": 0,
+        "evidence_mismatch": 0,
+        "duplicate": 0,
+        "low_confidence": 0,
+        "below_severity": 0,
+        "over_cap": 0
+      },
+      "findings": []
+    },
+    {
+      "case": "clean_subprocess_args",
+      "repeat": 3,
+      "has_code": true,
+      "files_reviewed": 1,
+      "chunks_total": 1,
+      "chunks_failed": 0,
+      "calls": 1,
+      "invalid_outputs": 0,
+      "tokens_in": 1886,
+      "tokens_out": 194,
+      "cost_usd": "0.000399",
+      "retry_cost_usd": "0",
+      "attempts": 1,
+      "model_latency_ms": 937,
+      "wall_ms": 56906,
+      "drop_counts": {
+        "unknown_file": 0,
+        "line_not_in_diff": 0,
+        "no_added_line": 0,
+        "evidence_mismatch": 0,
+        "duplicate": 0,
+        "low_confidence": 0,
+        "below_severity": 0,
+        "over_cap": 0
+      },
+      "findings": []
+    },
+    {
+      "case": "docs_only",
+      "repeat": 3,
+      "has_code": false,
+      "files_reviewed": 0,
+      "chunks_total": 0,
+      "chunks_failed": 0,
+      "calls": 0,
+      "invalid_outputs": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "cost_usd": "0",
+      "retry_cost_usd": "0",
+      "attempts": 1,
+      "model_latency_ms": 0,
+      "wall_ms": 0,
+      "drop_counts": {
+        "unknown_file": 0,
+        "line_not_in_diff": 0,
+        "no_added_line": 0,
+        "evidence_mismatch": 0,
+        "duplicate": 0,
+        "low_confidence": 0,
+        "below_severity": 0,
+        "over_cap": 0
+      },
+      "findings": []
+    },
+    {
+      "case": "eval_user_input",
+      "repeat": 3,
+      "has_code": true,
+      "files_reviewed": 1,
+      "chunks_total": 1,
+      "chunks_failed": 0,
+      "calls": 1,
+      "invalid_outputs": 0,
+      "tokens_in": 1827,
+      "tokens_out": 245,
+      "cost_usd": "0.000421",
+      "retry_cost_usd": "0",
+      "attempts": 1,
+      "model_latency_ms": 1030,
+      "wall_ms": 1843,
+      "drop_counts": {
+        "unknown_file": 0,
+        "line_not_in_diff": 0,
+        "no_added_line": 0,
+        "evidence_mismatch": 0,
+        "duplicate": 0,
+        "low_confidence": 0,
+        "below_severity": 0,
+        "over_cap": 0
+      },
+      "findings": [
+        {
+          "agent": "security",
+          "stage": "posted",
+          "file": "app/calc.py",
+          "line": 16,
+          "end_line": null,
+          "severity": "high",
+          "category": "code-injection",
+          "confidence": 0.95,
+          "message": "The endpoint directly passes user-controlled input to eval, allowing an attacker to execute arbitrary Python code on the server.",
+          "suggestion": "Replace eval with a safe expression parser (e.g., ast.literal_eval for literals or a dedicated math expression library) and validate/sanitize the input before evaluation.",
+          "evidence": "return jsonify(result=eval(expression))"
+        }
+      ]
+    },
+    {
+      "case": "hardcoded_secret",
+      "repeat": 3,
+      "has_code": true,
+      "files_reviewed": 1,
+      "chunks_total": 1,
+      "chunks_failed": 0,
+      "calls": 1,
+      "invalid_outputs": 0,
+      "tokens_in": 1856,
+      "tokens_out": 340,
+      "cost_usd": "0.000482",
+      "retry_cost_usd": "0",
+      "attempts": 1,
+      "model_latency_ms": 1219,
+      "wall_ms": 1719,
+      "drop_counts": {
+        "unknown_file": 0,
+        "line_not_in_diff": 0,
+        "no_added_line": 0,
+        "evidence_mismatch": 0,
+        "duplicate": 0,
+        "low_confidence": 0,
+        "below_severity": 0,
+        "over_cap": 0
+      },
+      "findings": [
+        {
+          "agent": "security",
+          "stage": "posted",
+          "file": "app/config.py",
+          "line": 8,
+          "end_line": null,
+          "severity": "high",
+          "category": "hardcoded-secret",
+          "confidence": 0.95,
+          "message": "A plaintext database password is embedded in code, exposing credentials if the repository is public or leaked.",
+          "suggestion": "Load the password from a secure source such as environment variables or a secret manager instead of hardcoding it.",
+          "evidence": "DB_PASSWORD = \"Pr0d-Passw0rd-2026!\""
+        },
+        {
+          "agent": "security",
+          "stage": "posted",
+          "file": "app/config.py",
+          "line": 11,
+          "end_line": null,
+          "severity": "high",
+          "category": "hardcoded-secret",
+          "confidence": 0.95,
+          "message": "A payment provider API token is hardcoded, risking unauthorized access to the payment service if the code is exposed.",
+          "suggestion": "Store the API token in environment variables or a secrets vault and retrieve it at runtime.",
+          "evidence": "PAYMENT_API_TOKEN = \"pay_tok_9f8e7d6c5b4a39281706\""
+        }
+      ]
+    },
+    {
+      "case": "path_traversal",
+      "repeat": 3,
+      "has_code": true,
+      "files_reviewed": 1,
+      "chunks_total": 1,
+      "chunks_failed": 0,
+      "calls": 1,
+      "invalid_outputs": 0,
+      "tokens_in": 1855,
+      "tokens_out": 258,
+      "cost_usd": "0.000433",
+      "retry_cost_usd": "0",
+      "attempts": 1,
+      "model_latency_ms": 1687,
+      "wall_ms": 57187,
+      "drop_counts": {
+        "unknown_file": 0,
+        "line_not_in_diff": 0,
+        "no_added_line": 0,
+        "evidence_mismatch": 0,
+        "duplicate": 0,
+        "low_confidence": 0,
+        "below_severity": 0,
+        "over_cap": 0
+      },
+      "findings": [
+        {
+          "agent": "security",
+          "stage": "posted",
+          "file": "app/files.py",
+          "line": 18,
+          "end_line": 20,
+          "severity": "high",
+          "category": "path-traversal",
+          "confidence": 0.93,
+          "message": "The endpoint builds a file path from the user-controlled 'name' parameter using os.path.join without validation, allowing an attacker to request arbitrary files via directory traversal (e.g., '../../etc/passwd').",
+          "suggestion": "Validate and sanitize the 'name' parameter (e.g., restrict to a whitelist of filenames or use a safe join that prevents '..' sequences) before constructing the path.",
+          "evidence": "name = request.args.get(\"name\", \"\")"
+        }
+      ]
+    },
+    {
+      "case": "sql_injection",
+      "repeat": 3,
+      "has_code": true,
+      "files_reviewed": 1,
+      "chunks_total": 1,
+      "chunks_failed": 0,
+      "calls": 1,
+      "invalid_outputs": 0,
+      "tokens_in": 1908,
+      "tokens_out": 442,
+      "cost_usd": "0.000551",
+      "retry_cost_usd": "0",
+      "attempts": 1,
+      "model_latency_ms": 1405,
+      "wall_ms": 1483,
+      "drop_counts": {
+        "unknown_file": 0,
+        "line_not_in_diff": 0,
+        "no_added_line": 0,
+        "evidence_mismatch": 0,
+        "duplicate": 0,
+        "low_confidence": 0,
+        "below_severity": 0,
+        "over_cap": 0
+      },
+      "findings": [
+        {
+          "agent": "security",
+          "stage": "posted",
+          "file": "app/users.py",
+          "line": 9,
+          "end_line": null,
+          "severity": "high",
+          "category": "sql-injection",
+          "confidence": 0.95,
+          "message": "The function `find_user_by_name` concatenates the `username` parameter directly into the SQL query, allowing an attacker to inject arbitrary SQL code.",
+          "suggestion": "Use parameterized queries, e.g., `conn.execute(\"SELECT id, email FROM users WHERE username = %s\", (username,))`.",
+          "evidence": "query = \"SELECT id, email FROM users WHERE username = '\" + username + \"'\""
+        },
+        {
+          "agent": "security",
+          "stage": "posted",
+          "file": "app/users.py",
+          "line": 14,
+          "end_line": null,
+          "severity": "high",
+          "category": "sql-injection",
+          "confidence": 0.94,
+          "message": "The `search_users` function interpolates both `term` and `order_by` directly into the SQL statement via an f-string, exposing it to injection attacks through either parameter.",
+          "suggestion": "Rewrite the query to use placeholders for `term` and whitelist/validate `order_by` before inclusion, e.g., `conn.execute(\"SELECT id, email FROM users WHERE email LIKE %s ORDER BY %s\", (f\"%{term}%\", safe_order_by))`.",
+          "evidence": "sql = f\"SELECT id, email FROM users WHERE email LIKE '%{term}%' ORDER BY {order_by}\""
+        }
+      ]
+    },
+    {
+      "case": "weak_password_hash",
+      "repeat": 3,
+      "has_code": true,
+      "files_reviewed": 1,
+      "chunks_total": 1,
+      "chunks_failed": 0,
+      "calls": 1,
+      "invalid_outputs": 0,
+      "tokens_in": 1894,
+      "tokens_out": 268,
+      "cost_usd": "0.000445",
+      "retry_cost_usd": "0",
+      "attempts": 1,
+      "model_latency_ms": 1094,
+      "wall_ms": 1203,
+      "drop_counts": {
+        "unknown_file": 0,
+        "line_not_in_diff": 0,
+        "no_added_line": 0,
+        "evidence_mismatch": 0,
+        "duplicate": 0,
+        "low_confidence": 0,
+        "below_severity": 0,
+        "over_cap": 0
+      },
+      "findings": [
+        {
+          "agent": "security",
+          "stage": "posted",
+          "file": "app/accounts.py",
+          "line": 11,
+          "end_line": null,
+          "severity": "high",
+          "category": "weak-crypto",
+          "confidence": 0.95,
+          "message": "Passwords are hashed using MD5, which is a fast, broken hash algorithm unsuitable for storing passwords. An attacker can efficiently brute‑force or use precomputed tables to recover original passwords.",
+          "suggestion": "Replace MD5 with a password‑hashing function such as bcrypt, Argon2, or PBKDF2, which includes a salt and is computationally expensive.",
+          "evidence": "return hashlib.md5(password.encode()).hexdigest()"
+        }
+      ]
+    }
+  ],
+  "metrics": {
+    "tolerance": 2,
+    "categories_sha256": "85d2da1a5342",
+    "sample": {
+      "cases": 9,
+      "with_issues": 5,
+      "clean": 4,
+      "clean_with_code": 3,
+      "issues": 7,
+      "optional": 0,
+      "repeats": 3,
+      "case_runs": 27
+    },
+    "stages": {
+      "raw": {
+        "tp": 21,
+        "fp": 1,
+        "fn": 0,
+        "duplicates": 0,
+        "optional_hits": 0,
+        "precision": 0.9545,
+        "recall": 1.0,
+        "f1": 0.9767,
+        "precision_ci95": [
+          0.6,
+          0.9966
+        ],
+        "recall_ci95": [
+          0.6457,
+          1.0
+        ],
+        "severity_agreement": 1.0,
+        "clean_runs": 12,
+        "fp_on_clean": 1,
+        "fp_per_clean": 0.0833,
+        "clean_with_code_runs": 9,
+        "fp_on_clean_with_code": 1,
+        "fp_per_clean_with_code": 0.1111,
+        "per_repeat": [
+          {
+            "repeat": 1,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0
+          },
+          {
+            "repeat": 2,
+            "precision": 0.875,
+            "recall": 1.0,
+            "f1": 0.9333
+          },
+          {
+            "repeat": 3,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0
+          }
+        ]
+      },
+      "anchored": {
+        "tp": 21,
+        "fp": 1,
+        "fn": 0,
+        "duplicates": 0,
+        "optional_hits": 0,
+        "precision": 0.9545,
+        "recall": 1.0,
+        "f1": 0.9767,
+        "precision_ci95": [
+          0.6,
+          0.9966
+        ],
+        "recall_ci95": [
+          0.6457,
+          1.0
+        ],
+        "severity_agreement": 1.0,
+        "clean_runs": 12,
+        "fp_on_clean": 1,
+        "fp_per_clean": 0.0833,
+        "clean_with_code_runs": 9,
+        "fp_on_clean_with_code": 1,
+        "fp_per_clean_with_code": 0.1111,
+        "per_repeat": [
+          {
+            "repeat": 1,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0
+          },
+          {
+            "repeat": 2,
+            "precision": 0.875,
+            "recall": 1.0,
+            "f1": 0.9333
+          },
+          {
+            "repeat": 3,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0
+          }
+        ]
+      },
+      "posted": {
+        "tp": 21,
+        "fp": 1,
+        "fn": 0,
+        "duplicates": 0,
+        "optional_hits": 0,
+        "precision": 0.9545,
+        "recall": 1.0,
+        "f1": 0.9767,
+        "precision_ci95": [
+          0.6,
+          0.9966
+        ],
+        "recall_ci95": [
+          0.6457,
+          1.0
+        ],
+        "severity_agreement": 1.0,
+        "clean_runs": 12,
+        "fp_on_clean": 1,
+        "fp_per_clean": 0.0833,
+        "clean_with_code_runs": 9,
+        "fp_on_clean_with_code": 1,
+        "fp_per_clean_with_code": 0.1111,
+        "per_repeat": [
+          {
+            "repeat": 1,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0
+          },
+          {
+            "repeat": 2,
+            "precision": 0.875,
+            "recall": 1.0,
+            "f1": 0.9333
+          },
+          {
+            "repeat": 3,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0
+          }
+        ]
+      }
+    },
+    "strict_posted": {
+      "tp": 21,
+      "fp": 1,
+      "fn": 0,
+      "duplicates": 0,
+      "optional_hits": 0,
+      "precision": 0.9545,
+      "recall": 1.0,
+      "f1": 0.9767,
+      "precision_ci95": [
+        0.6,
+        0.9966
+      ],
+      "recall_ci95": [
+        0.6457,
+        1.0
+      ],
+      "severity_agreement": 1.0,
+      "clean_runs": 12,
+      "fp_on_clean": 1,
+      "fp_per_clean": 0.0833,
+      "clean_with_code_runs": 9,
+      "fp_on_clean_with_code": 1,
+      "fp_per_clean_with_code": 0.1111,
+      "per_repeat": [
+        {
+          "repeat": 1,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0
+        },
+        {
+          "repeat": 2,
+          "precision": 0.875,
+          "recall": 1.0,
+          "f1": 0.9333
+        },
+        {
+          "repeat": 3,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0
+        }
+      ]
+    },
+    "per_split": {
+      "dev": {
+        "tp": 21,
+        "fp": 1,
+        "fn": 0,
+        "duplicates": 0,
+        "optional_hits": 0,
+        "precision": 0.9545,
+        "recall": 1.0,
+        "f1": 0.9767,
+        "precision_ci95": [
+          0.6,
+          0.9966
+        ],
+        "recall_ci95": [
+          0.6457,
+          1.0
+        ],
+        "severity_agreement": 1.0,
+        "clean_runs": 12,
+        "fp_on_clean": 1,
+        "fp_per_clean": 0.0833,
+        "clean_with_code_runs": 9,
+        "fp_on_clean_with_code": 1,
+        "fp_per_clean_with_code": 0.1111,
+        "per_repeat": [
+          {
+            "repeat": 1,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0
+          },
+          {
+            "repeat": 2,
+            "precision": 0.875,
+            "recall": 1.0,
+            "f1": 0.9333
+          },
+          {
+            "repeat": 3,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0
+          }
+        ]
+      }
+    },
+    "per_category": [
+      {
+        "category": "code-injection",
+        "known": true,
+        "issues": 3,
+        "found": 3,
+        "recall": 1.0,
+        "predicted": 3,
+        "correct": 3,
+        "precision": 1.0
+      },
+      {
+        "category": "command-injection",
+        "known": true,
+        "issues": 0,
+        "found": 0,
+        "recall": null,
+        "predicted": 1,
+        "correct": 0,
+        "precision": 0.0
+      },
+      {
+        "category": "hardcoded-secret",
+        "known": true,
+        "issues": 6,
+        "found": 6,
+        "recall": 1.0,
+        "predicted": 6,
+        "correct": 6,
+        "precision": 1.0
+      },
+      {
+        "category": "path-traversal",
+        "known": true,
+        "issues": 3,
+        "found": 3,
+        "recall": 1.0,
+        "predicted": 3,
+        "correct": 3,
+        "precision": 1.0
+      },
+      {
+        "category": "sql-injection",
+        "known": true,
+        "issues": 6,
+        "found": 6,
+        "recall": 1.0,
+        "predicted": 6,
+        "correct": 6,
+        "precision": 1.0
+      },
+      {
+        "category": "weak-crypto",
+        "known": true,
+        "issues": 3,
+        "found": 3,
+        "recall": 1.0,
+        "predicted": 3,
+        "correct": 3,
+        "precision": 1.0
+      }
+    ],
+    "per_agent": [
+      {
+        "agent": "security",
+        "findings": 22,
+        "tp": 21,
+        "fp": 1,
+        "precision": 0.9545
+      }
+    ],
+    "per_case": [
+      {
+        "case": "clean_env_secret",
+        "split": "dev",
+        "runs": 3,
+        "issues": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "duplicates": 0,
+        "optional_hits": 0
+      },
+      {
+        "case": "clean_safe_yaml",
+        "split": "dev",
+        "runs": 3,
+        "issues": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "duplicates": 0,
+        "optional_hits": 0
+      },
+      {
+        "case": "clean_subprocess_args",
+        "split": "dev",
+        "runs": 3,
+        "issues": 0,
+        "tp": 0,
+        "fp": 1,
+        "fn": 0,
+        "duplicates": 0,
+        "optional_hits": 0
+      },
+      {
+        "case": "docs_only",
+        "split": "dev",
+        "runs": 3,
+        "issues": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "duplicates": 0,
+        "optional_hits": 0
+      },
+      {
+        "case": "eval_user_input",
+        "split": "dev",
+        "runs": 3,
+        "issues": 1,
+        "tp": 3,
+        "fp": 0,
+        "fn": 0,
+        "duplicates": 0,
+        "optional_hits": 0
+      },
+      {
+        "case": "hardcoded_secret",
+        "split": "dev",
+        "runs": 3,
+        "issues": 2,
+        "tp": 6,
+        "fp": 0,
+        "fn": 0,
+        "duplicates": 0,
+        "optional_hits": 0
+      },
+      {
+        "case": "path_traversal",
+        "split": "dev",
+        "runs": 3,
+        "issues": 1,
+        "tp": 3,
+        "fp": 0,
+        "fn": 0,
+        "duplicates": 0,
+        "optional_hits": 0
+      },
+      {
+        "case": "sql_injection",
+        "split": "dev",
+        "runs": 3,
+        "issues": 2,
+        "tp": 6,
+        "fp": 0,
+        "fn": 0,
+        "duplicates": 0,
+        "optional_hits": 0
+      },
+      {
+        "case": "weak_password_hash",
+        "split": "dev",
+        "runs": 3,
+        "issues": 1,
+        "tp": 3,
+        "fp": 0,
+        "fn": 0,
+        "duplicates": 0,
+        "optional_hits": 0
+      }
+    ],
+    "unknown_categories": {},
+    "usage": {
+      "calls": 24,
+      "invalid_outputs": 0,
+      "invalid_output_rate": 0.0,
+      "chunks_total": 24,
+      "chunks_failed": 0,
+      "chunk_failure_rate": 0.0,
+      "reviewed_runs": 24,
+      "total_cost_usd": "0.010398",
+      "cost_per_case_usd": "0.000385",
+      "cost_per_reviewed_case_usd": "0.000433",
+      "model_latency_ms_per_case": 1049.5,
+      "model_latency_ms_per_reviewed_case": 1180.7,
+      "wall_ms_per_case": 15716.6,
+      "wall_ms_per_reviewed_case": 17681.2,
+      "max_wall_ms": 58094
+    }
+  }
+}
