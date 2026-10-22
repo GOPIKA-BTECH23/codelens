@@ -6,6 +6,8 @@ AI security review for GitHub pull requests, posted as validated inline comments
 
 **https://codelens-blue.vercel.app**: the dashboard is behind GitHub sign-in.
 
+**See a real review:** https://github.com/GOPIKA-BTECH23/codelens-demo/pull/2 is a real review posted by the CodeLens GitHub App on a deliberately flawed pull request (a hardcoded password and a SQL query built by string concatenation). The page also shows earlier reviews from the app's development instance.
+
 This is a demo for public repositories. The production GitHub App is set to install only on the owner's account, and the diff of every reviewed PR is sent to the LLM provider. The API runs on a free Render instance that sleeps when idle, so the first load can take about a minute.
 
 ## How it works
